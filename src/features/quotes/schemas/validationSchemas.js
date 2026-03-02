@@ -21,12 +21,9 @@ export const quoteValidationSchema = Yup.object().shape({
       (value) => !!value && value !== "",
     ),
 
-  equity_status: Yup.string()
-    .oneOf(
-      ["pending", "approved", "rejected", "not_applicable"],
-      "Invalid equity status",
-    )
-    .default("not_applicable"),
+  quote_due_date: Yup.date()
+    .nullable()
+    .typeError("Invalid date format"),
 
   currency: Yup.string()
     .required("Currency is required")

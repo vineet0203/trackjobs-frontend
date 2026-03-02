@@ -18,7 +18,7 @@ import { Person, Business } from '@mui/icons-material';
 import SectionHeader from '../../../../components/common/form/SectionHeader';
 import DebouncedTextField from '../../../../components/common/form/DebouncedTextField';
 import DebouncedSelect from '../../../../components/common/form/DebouncedSelect';
-import { QUOTE_STATUS_OPTIONS, CURRENCIES, EQUITY_STATUS_OPTIONS } from '../../constants/quoteConstants';
+import { QUOTE_STATUS_OPTIONS, CURRENCIES } from '../../constants/quoteConstants';
 
 // Helper function to get client display name based on client type
 const getClientDisplayName = (client) => {
@@ -83,7 +83,7 @@ const QuoteDetailsSection = ({ formik, clients = [], loadingClients = false }) =
       <SectionHeader number="1" title="Quote Details" />
 
       <Grid container spacing={3}>
-        {/* Row 1: Quote Title and Equity Status */}
+        {/* Row 1: Quote Title and Quote Due Date */}
         <Grid item xs={12} md={6}>
           <DebouncedTextField
             name="title"
@@ -99,16 +99,17 @@ const QuoteDetailsSection = ({ formik, clients = [], loadingClients = false }) =
         </Grid>
 
         <Grid item xs={12} md={6}>
-          <DebouncedSelect
-            name="equity_status"
-            label="Equity Status"
-            value={formik.values.equity_status}
-            onChange={(value) => formik.setFieldValue('equity_status', value)}
+          <DebouncedTextField
+            name="quote_due_date"
+            label="Quote Due Date"
+            type="date"
+            value={formik.values.quote_due_date || ''}
+            onChange={(value) => formik.setFieldValue('quote_due_date', value)}
             onBlur={formik.handleBlur}
-            error={formik.touched.equity_status && Boolean(formik.errors.equity_status)}
-            helperText={formik.touched.equity_status && formik.errors.equity_status}
-            options={EQUITY_STATUS_OPTIONS}
+            error={formik.touched.quote_due_date && Boolean(formik.errors.quote_due_date)}
+            helperText={formik.touched.quote_due_date && formik.errors.quote_due_date}
             fullWidth
+            InputLabelProps={{ shrink: true }}
           />
         </Grid>
 

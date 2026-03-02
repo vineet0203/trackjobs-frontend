@@ -1,5 +1,5 @@
 // features/quotes/components/QuoteForm/QuoteForm.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, Grid, Paper, Divider, Alert } from '@mui/material';
 import { Formik, Form } from 'formik';
 import { useNavigate } from 'react-router-dom';
@@ -12,6 +12,29 @@ import FollowUpRemindersSection from './FollowUpRemindersSection';
 import ConversionToJobSection from './ConversionToJobSection';
 import QuoteFormActions from './QuoteFormActions';
 import { calculateQuoteTotals } from '../../utils/quoteTransformers';
+
+// Watches for client_id changes and auto-populates tax_rate on line items
+const ClientTaxSync = ({ formik, clients }) => {
+  const prevClientIdRef = useRef(formik.values.client_id);
+
+  useEffect(() => {
+    const currentClientId = formik.values.client_id;
+    if (currentClientId && currentClientId !== prevClientIdRef.current) {
+      const client = clients.find(c => String(c.id) === String(currentClientId));
+      if (client) {
+        const clientTax = parseFloat(client.tax_percentage) || 0;
+        const updatedItems = formik.values.line_items.map(item => ({
+          ...item,
+          tax_rate: clientTax,
+        }));
+        formik.setFieldValue('line_items', updatedItems);
+      }
+    }
+    prevClientIdRef.current = currentClientId;
+  }, [formik.values.client_id]);
+
+  return null;
+};
 
 const QuoteForm = ({
   initialData = {},
@@ -31,7 +54,7 @@ const QuoteForm = ({
     title: initialData.title || '',
     client_id: initialData.client_id || '',
     status: initialData.status || 'draft',
-    equity_status: initialData.equity_status || 'not_applicable',
+    quote_due_date: initialData.quote_due_date || '',
     currency: initialData.currency || 'USD',
 
     // Section 2: Line Items
@@ -183,6 +206,7 @@ const QuoteForm = ({
 
         return (
           <Form>
+            <ClientTaxSync formik={formik} clients={clients} />
             <Paper sx={{ p: 4, borderRadius: 2 }}>
               {submitError && (
                 <Alert severity="error" sx={{ mb: 3 }}>
@@ -200,7 +224,14 @@ const QuoteForm = ({
               <Divider sx={{ my: 4 }} />
 
               {/* Section 2: Line Items */}
-              <QuoteLineItems formik={formik} />
+              <QuoteLineItems
+                formik={formik}
+                defaultTaxRate={
+                  formik.values.client_id
+                    ? parseFloat(clients.find(c => String(c.id) === String(formik.values.client_id))?.tax_percentage) || 0
+                    : 0
+                }
+              />
 
               <Divider sx={{ my: 4 }} />
 

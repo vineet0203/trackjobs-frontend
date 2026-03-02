@@ -19,7 +19,7 @@ import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import DebouncedTextField from '../../../../components/common/form/DebouncedTextField';
 import SectionHeader from '../../../../components/common/form/SectionHeader';
 
-const QuoteLineItems = ({ formik }) => {
+const QuoteLineItems = ({ formik, defaultTaxRate = 0 }) => {
     const { values, setFieldValue, errors, touched, setFieldTouched } = formik;
     const [localValues, setLocalValues] = useState({});
 
@@ -29,7 +29,7 @@ const QuoteLineItems = ({ formik }) => {
             description: '',
             quantity: 1,
             unit_price: 1,
-            tax_rate: 0,
+            tax_rate: defaultTaxRate,
             package_id: null,
         };
         const newItems = [...values.line_items, newItem];

@@ -9,7 +9,7 @@ export const transformQuoteFromApi = (apiQuote) => {
     client_id: apiQuote.client_id,
     client_name: apiQuote.client_name,
     client_email: apiQuote.client_email,
-    equity_status: apiQuote.equity_status,
+    quote_due_date: apiQuote.quote_due_date,
     currency: apiQuote.currency,
 
     // Pricing
