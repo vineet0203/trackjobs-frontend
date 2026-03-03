@@ -37,6 +37,11 @@ import JobList from './features/jobs/pages/JobList';
 import EmployeeList from './features/employees/pages/EmployeeList';
 import TestPage from './pages/TestPage';
 
+// Onboarding Pages
+import FillForm from './features/onboarding/pages/FillForm';
+import OnboardingList from './features/onboarding/pages/OnboardingList';
+import OnboardingAssign from './features/onboarding/pages/OnboardingAssign';
+
 
 const AppContent = () => {
   const { loadAuthState, user } = useAuth();
@@ -53,6 +58,9 @@ const AppContent = () => {
       <Route path="/auth/forgot-password" element={<ForgotPassword />} />
       <Route path="/auth/reset-password" element={<ResetPassword />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
+
+      {/* Public Onboarding Form (no auth - token-based) */}
+      <Route path="/fill-form/:token" element={<FillForm />} />
 
       {/* Protected Routes */}
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
@@ -91,6 +99,10 @@ const AppContent = () => {
         <Route path="/reports" element={<NotYetDesigned />} />
         <Route path="/settings" element={<NotYetDesigned />} />
         {/* <Route path="/test" element={<TestPage />} /> */}
+
+        {/* Onboarding Module */}
+        <Route path="/onboarding" element={<OnboardingList />} />
+        <Route path="/onboarding/assign" element={<OnboardingAssign />} />
 
       </Route>
 

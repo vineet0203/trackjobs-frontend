@@ -14,7 +14,8 @@ import {
   Clock10,
   Calendar1Icon,
   Book,
-  Quote
+  Quote,
+  ClipboardCheck
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -36,6 +37,7 @@ const Sidebar = () => {
     timesheets: <Calendar1Icon size={18} />,
     booking: <Calendar size={18} />,
     employees: <Users size={18} />,
+    onboarding: <ClipboardCheck size={18} />,
     reports: <BarChart3 size={18} />,
     settings: <Settings size={18} />,
   };

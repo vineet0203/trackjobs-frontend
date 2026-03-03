@@ -93,7 +93,6 @@ export const STATE_OPTIONS = [
 ];
 
 export const COUNTRY_OPTIONS = [
-  { value: "india", label: "India" },
   { value: "usa", label: "USA" },
 ];
 

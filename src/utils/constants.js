@@ -31,6 +31,7 @@ export const NAV_ITEMS = [
   // { path: "/timesheets", label: "Timesheets", icon: "timesheets" },
   { path: "/online-booking", label: "Online Booking", icon: "booking" },
   { path: "/employees", label: "Employee Management", icon: "employees" },
+  { path: "/onboarding", label: "Onboarding", icon: "onboarding" },
   { path: "/invoices", label: "Invoices", icon: "invoices" },
 
   { path: "/reports", label: "Reports", icon: "reports" },
