@@ -59,9 +59,10 @@ const onboardingService = {
     const formData = new FormData();
     formData.append('completed_pdf', pdfBlob, 'completed-form.pdf');
 
-    const response = await publicClient.post(`${PUBLIC_BASE}/${token}/submit`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    // Do NOT set Content-Type manually — browser must set it with the correct
+    // multipart boundary. Manually setting it omits the boundary, which causes
+    // nginx/php-fpm to fail parsing the file upload in production.
+    const response = await publicClient.post(`${PUBLIC_BASE}/${token}/submit`, formData);
     return response.data;
   },
 };
