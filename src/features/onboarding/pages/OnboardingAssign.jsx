@@ -12,11 +12,31 @@ import {
   Alert,
   CircularProgress,
   Snackbar,
+  FormControl,
+  InputLabel,
+  Select,
+  FormHelperText,
+  Avatar,
+  Chip,
 } from '@mui/material';
+import { Person, Business } from '@mui/icons-material';
 import SendIcon from '@mui/icons-material/Send';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useNavigate } from 'react-router-dom';
 import onboardingService from '../services/onboardingService';
+import { useClients } from '../../clients/hooks/useClients';
+
+// Helper function to get client display name based on client type
+const getClientDisplayName = (client) => {
+  if (!client) return '';
+  if (client.client_type === 'commercial') {
+    return client.business_name || 'Unnamed Business';
+  } else {
+    const firstName = client.first_name || '';
+    const lastName = client.last_name || '';
+    return `${firstName} ${lastName}`.trim() || 'Unnamed Client';
+  }
+};
 
 const OnboardingAssign = () => {
   const navigate = useNavigate();
@@ -26,6 +46,9 @@ const OnboardingAssign = () => {
   const [submitting, setSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
+  // Use the clients hook to fetch vendor's customers
+  const { clients, loadClients, loading: clientsLoading } = useClients({ limit: 100 });
+
   const [form, setForm] = useState({
     employee_name: '',
     employee_email: '',
@@ -33,7 +56,7 @@ const OnboardingAssign = () => {
     customer_id: '',
   });
 
-  // Load templates on mount
+  // Load templates and clients on mount
   useEffect(() => {
     const loadTemplates = async () => {
       try {
@@ -49,7 +72,36 @@ const OnboardingAssign = () => {
       }
     };
     loadTemplates();
-  }, []);
+    loadClients(1, 100); // Load all clients for dropdown
+  }, [loadClients]);
+
+  // Handle customer selection from dropdown
+  const handleCustomerChange = (e) => {
+    const customerId = e.target.value;
+    
+    if (!customerId) {
+      setForm({
+        employee_name: '',
+        employee_email: '',
+        template_id: form.template_id,
+        customer_id: '',
+      });
+      return;
+    }
+
+    // Find the selected customer using String comparison to handle type mismatch
+    const selectedCustomer = clients.find(c => String(c.id) === String(customerId));
+    
+    if (selectedCustomer) {
+      const displayName = getClientDisplayName(selectedCustomer);
+      setForm({
+        ...form,
+        employee_name: displayName,
+        employee_email: selectedCustomer.email || '',
+        customer_id: customerId,
+      });
+    }
+  };
 
   const handleChange = (field) => (e) => {
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
@@ -58,8 +110,8 @@ const OnboardingAssign = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!form.employee_name.trim() || !form.employee_email.trim() || !form.template_id) {
-      setSnackbar({ open: true, message: 'Please fill in all required fields.', severity: 'warning' });
+    if (!form.customer_id || !form.template_id) {
+      setSnackbar({ open: true, message: 'Please select a customer and document template.', severity: 'warning' });
       return;
     }
 
@@ -115,27 +167,113 @@ const OnboardingAssign = () => {
       <Paper sx={{ p: 3 }}>
         <form onSubmit={handleSubmit}>
           <Grid container spacing={2}>
+            {/* Customer Selection Dropdown */}
             <Grid item xs={12}>
-              <TextField
-                fullWidth
-                required
-                label="Customer Name"
-                value={form.employee_name}
-                onChange={handleChange('employee_name')}
-                disabled={submitting}
-              />
+              <FormControl fullWidth required disabled={submitting || clientsLoading}>
+                <InputLabel id="customer-select-label">Select Customer</InputLabel>
+                <Select
+                  labelId="customer-select-label"
+                  id="customer-select"
+                  value={form.customer_id}
+                  label="Select Customer"
+                  onChange={handleCustomerChange}
+                  renderValue={(selected) => {
+                    if (clientsLoading) {
+                      return (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CircularProgress size={16} />
+                          <Typography variant="body2" color="text.secondary">
+                            Loading customers...
+                          </Typography>
+                        </Box>
+                      );
+                    }
+                    if (!selected) return <em>Select a customer</em>;
+                    const client = clients.find(c => String(c.id) === String(selected));
+                    if (!client) return <em>Select a customer</em>;
+                    const displayName = getClientDisplayName(client);
+                    return (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Avatar
+                          sx={{
+                            width: 24,
+                            height: 24,
+                            bgcolor: client.client_type === 'commercial' ? 'primary.main' : 'warning.main',
+                            color: 'white'
+                          }}
+                        >
+                          {client.client_type === 'commercial' ? <Business fontSize="small" /> : <Person fontSize="small" />}
+                        </Avatar>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {displayName}
+                        </Typography>
+                      </Box>
+                    );
+                  }}
+                >
+                  {clientsLoading ? (
+                    <MenuItem disabled>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CircularProgress size={20} />
+                        <Typography variant="body2">Loading customers...</Typography>
+                      </Box>
+                    </MenuItem>
+                  ) : clients.length === 0 ? (
+                    <MenuItem disabled>
+                      <Typography variant="body2" color="text.secondary">
+                        No customers found. Create a customer first.
+                      </Typography>
+                    </MenuItem>
+                  ) : (
+                    clients.map((client) => {
+                      const displayName = getClientDisplayName(client);
+                      const isCommercial = client.client_type === 'commercial';
+                      return (
+                        <MenuItem key={client.id} value={client.id}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
+                            <Avatar
+                              sx={{
+                                width: 32,
+                                height: 32,
+                                bgcolor: isCommercial ? 'primary.main' : 'warning.main',
+                                color: 'white'
+                              }}
+                            >
+                              {isCommercial ? <Business fontSize="small" /> : <Person fontSize="small" />}
+                            </Avatar>
+                            <Box sx={{ flex: 1 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                  {displayName}
+                                </Typography>
+                                <Chip
+                                  label={isCommercial ? 'Commercial' : 'Residential'}
+                                  size="small"
+                                  color={isCommercial ? 'primary' : 'warning'}
+                                  sx={{ height: 20, '& .MuiChip-label': { fontSize: '0.7rem', px: 1 } }}
+                                />
+                              </Box>
+                              {client.email && (
+                                <Typography variant="caption" color="text.secondary">
+                                  {client.email}
+                                </Typography>
+                              )}
+                            </Box>
+                          </Box>
+                        </MenuItem>
+                      );
+                    })
+                  )}
+                </Select>
+                <FormHelperText>
+                  {form.customer_id && form.employee_email 
+                    ? `Email will be sent to: ${form.employee_email}` 
+                    : 'Select a customer to send onboarding documents'}
+                </FormHelperText>
+              </FormControl>
             </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                required
-                type="email"
-                label="Customer Email"
-                value={form.employee_email}
-                onChange={handleChange('employee_email')}
-                disabled={submitting}
-              />
-            </Grid>
+
+            {/* Document Template Selection */}
             <Grid item xs={12}>
               <TextField
                 fullWidth
@@ -153,17 +291,8 @@ const OnboardingAssign = () => {
                 ))}
               </TextField>
             </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Customer ID (Optional)"
-                value={form.customer_id}
-                onChange={handleChange('customer_id')}
-                disabled={submitting}
-                type="number"
-                helperText="Link to a specific customer if applicable"
-              />
-            </Grid>
+
+            {/* Submit Button */}
             <Grid item xs={12}>
               <Button
                 type="submit"
@@ -171,7 +300,7 @@ const OnboardingAssign = () => {
                 variant="contained"
                 size="large"
                 startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
-                disabled={submitting}
+                disabled={submitting || !form.customer_id || !form.template_id}
                 sx={{ py: 1.5, fontWeight: 600 }}
               >
                 {submitting ? 'Sending...' : 'Assign & Send Email'}

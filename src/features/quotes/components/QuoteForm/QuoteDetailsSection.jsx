@@ -37,14 +37,16 @@ const QuoteDetailsSection = ({ formik, clients = [], loadingClients = false }) =
   const [selectedClient, setSelectedClient] = useState(formik.values.client_id || '');
   
   // Check if we have a pre-selected client and it exists in the clients list
+  // Use String() to handle type mismatch (client.id is number, formik value is string)
   const hasPreSelectedClient = formik.values.client_id && 
-    clients.some(client => client.id === formik.values.client_id);
+    clients.some(client => String(client.id) === String(formik.values.client_id));
 
   const handleClientChange = (event) => {
     const clientId = event.target.value;
     setSelectedClient(clientId);
 
-    const client = clients.find(c => c.id === clientId);
+    // Use String() to handle type mismatch (c.id is number, clientId from event is string)
+    const client = clients.find(c => String(c.id) === String(clientId));
 
     if (client) {
       const displayName = getClientDisplayName(client);
@@ -142,7 +144,8 @@ const QuoteDetailsSection = ({ formik, clients = [], loadingClients = false }) =
                 }
                 
                 if (!selected) return <em>Select a client</em>;
-                const client = clients.find(c => c.id === selected);
+                // Use String() to handle type mismatch
+                const client = clients.find(c => String(c.id) === String(selected));
                 if (!client) return <em>Select a client</em>;
 
                 const displayName = getClientDisplayName(client);
