@@ -59,10 +59,20 @@ const onboardingService = {
     const formData = new FormData();
     formData.append('completed_pdf', pdfBlob, 'completed-form.pdf');
 
-    // Do NOT set Content-Type manually — browser must set it with the correct
-    // multipart boundary. Manually setting it omits the boundary, which causes
-    // nginx/php-fpm to fail parsing the file upload in production.
-    const response = await publicClient.post(`${PUBLIC_BASE}/${token}/submit`, formData);
+    // Debug: log what we're sending
+    console.log('[onboarding] Submitting PDF:', {
+      blobSize: pdfBlob?.size,
+      blobType: pdfBlob?.type,
+      formDataHas: formData.has('completed_pdf'),
+    });
+
+    // IMPORTANT: Set Content-Type to undefined so axios auto-detects
+    // multipart/form-data with the correct boundary. The publicClient
+    // inherits Content-Type: application/json from API_CONFIG which
+    // causes FormData to be serialized as JSON → {"completed_pdf": {}}
+    const response = await publicClient.post(`${PUBLIC_BASE}/${token}/submit`, formData, {
+      headers: { 'Content-Type': undefined },
+    });
     return response.data;
   },
 };

@@ -196,6 +196,11 @@ const FillForm = () => {
       }
 
       // Submit to backend
+      console.log('[onboarding] Generated PDF blob:', {
+        size: pdfBlob?.size,
+        type: pdfBlob?.type,
+        isBlob: pdfBlob instanceof Blob,
+      });
       const response = await onboardingService.submitForm(token, pdfBlob);
 
       if (response.success) {
