@@ -139,7 +139,7 @@ const OnboardingList = () => {
                     {a.completed_at ? new Date(a.completed_at).toLocaleDateString() : '—'}
                   </TableCell>
                   <TableCell align="center">
-                    {a.has_pdf && (
+                    {(a.has_pdf || a.status === 'completed') && (
                       <Tooltip title="Download completed PDF">
                         <IconButton
                           color="primary"
