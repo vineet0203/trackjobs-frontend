@@ -16,7 +16,7 @@ const onboardingService = {
     return response.data;
   },
 
-  /** Assign a document to an employee */
+  /** Assign a document to a customer */
   async assignDocument(data) {
     const response = await httpClient.post(`${PROTECTED_BASE}/assign`, data);
     return response.data;
@@ -44,6 +44,14 @@ const onboardingService = {
   async getByToken(token) {
     const response = await publicClient.get(`${PUBLIC_BASE}/${token}`);
     return response.data;
+  },
+
+  /** Download the blank template PDF for filling (public, token-based) */
+  async getTemplatePdf(token) {
+    const response = await publicClient.get(`${PUBLIC_BASE}/${token}/template-pdf`, {
+      responseType: 'arraybuffer',
+    });
+    return response.data; // ArrayBuffer
   },
 
   /** Submit completed PDF */

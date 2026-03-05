@@ -15,9 +15,13 @@ import {
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import SendIcon from '@mui/icons-material/Send';
-import ConsentHomecareForm from '../components/ConsentHomecareForm';
+import DynamicPdfForm from '../components/DynamicPdfForm';
+import ConsentHomecareLayout, { CONSENT_AUTO_SYNC } from '../components/ConsentHomecareLayout';
 import onboardingService from '../services/onboardingService';
-import { generateFilledPdf, pdfBytesToBlob, downloadPdfBlob } from '../utils/pdfGenerator';
+import { extractFormFields, fillPdfForm, generateStandalonePdf } from '../utils/pdfFormFiller';
+
+// Template names that have custom form layouts
+const CONSENT_TEMPLATE = 'Consent for Homecare Services';
 
 const FillForm = () => {
   const { token } = useParams();
@@ -25,16 +29,22 @@ const FillForm = () => {
   // State
   const [assignment, setAssignment] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadingPdf, setLoadingPdf] = useState(false);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-  // Form state
-  const [formData, setFormData] = useState({});
-  const [signatures, setSignatures] = useState({});
+  // PDF template state
+  const [templateBytes, setTemplateBytes] = useState(null);
+  const [pdfFields, setPdfFields] = useState([]);
 
-  // Validate token on mount
+  // Form state (3 separate stores by field type)
+  const [formValues, setFormValues] = useState({});
+  const [checkboxValues, setCheckboxValues] = useState({});
+  const [signatureValues, setSignatureValues] = useState({});
+
+  // Step 1: Validate token
   useEffect(() => {
     const validateToken = async () => {
       try {
@@ -42,81 +52,147 @@ const FillForm = () => {
         const response = await onboardingService.getByToken(token);
         if (response.success && response.data) {
           setAssignment(response.data);
-          // Pre-fill employee name if available
-          setFormData((prev) => ({
-            ...prev,
-            clientName: response.data.employee_name || '',
-            agreementClientName: response.data.employee_name || '',
-          }));
         } else {
           setError(response.message || 'Invalid link.');
         }
       } catch (err) {
-        const msg =
-          err.response?.data?.message || 'This link is invalid or has expired.';
+        const msg = err.response?.data?.message || 'This link is invalid or has expired.';
         setError(msg);
       } finally {
         setLoading(false);
       }
     };
 
-    if (token) {
-      validateToken();
-    }
+    if (token) validateToken();
   }, [token]);
 
-  // Validate required fields
-  const validateForm = useCallback(() => {
-    const required = ['clientName', 'address', 'phoneNumber', 'agreementClientName', 'startDate'];
-    const missing = required.filter((f) => !formData[f]?.trim());
+  // Step 2: Load template PDF and extract fields
+  useEffect(() => {
+    const loadTemplate = async () => {
+      if (!assignment) return;
 
-    if (missing.length > 0) {
-      return `Please fill in: ${missing.join(', ')}`;
-    }
+      try {
+        setLoadingPdf(true);
 
-    if (!signatures.clientSignature) {
-      return 'Client signature on Page 1 is required.';
-    }
-    if (!signatures.clientSignaturePage2) {
-      return 'Client signature on Page 2 is required.';
-    }
+        // Download the template PDF via secured endpoint
+        const pdfArrayBuffer = await onboardingService.getTemplatePdf(token);
+        setTemplateBytes(pdfArrayBuffer);
 
-    return null;
-  }, [formData, signatures]);
+        // Extract form fields from the PDF
+        const fields = await extractFormFields(pdfArrayBuffer);
+        setPdfFields(fields);
+
+        // Pre-fill fields based on template
+        const employeeName = assignment.employee_name || '';
+        const templateName = assignment?.template?.name || '';
+        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD for date inputs
+
+        if (templateName === CONSENT_TEMPLATE) {
+          // Consent form — pre-fill client name + today's dates
+          const preFill = {};
+          if (employeeName) preFill['Client Name'] = employeeName;
+          preFill['Date'] = today;
+          preFill['Date_2'] = today;
+          preFill['Date_3'] = today;
+          preFill['Date_4'] = today;
+          setFormValues((prev) => ({ ...preFill, ...prev }));
+        } else if (employeeName) {
+          // Generic forms — pre-fill common client-name fields
+          const preFill = {};
+          for (const field of fields) {
+            const lowerName = field.name.toLowerCase();
+            if (
+              lowerName === 'client name' ||
+              lowerName === 'print first and last name' ||
+              lowerName === 'print name' ||
+              lowerName === 'name' ||
+              lowerName === 'client  responsible party name'
+            ) {
+              preFill[field.name] = employeeName;
+            }
+          }
+          if (Object.keys(preFill).length > 0) {
+            setFormValues((prev) => ({ ...preFill, ...prev }));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load template PDF:', err);
+        // Don't set error — the form can still work without the template
+        // (it will generate a standalone PDF on submit)
+        setSnackbar({
+          open: true,
+          message: 'Could not load the PDF template. You can still fill the form — a document will be generated on submit.',
+          severity: 'warning',
+        });
+      } finally {
+        setLoadingPdf(false);
+      }
+    };
+
+    loadTemplate();
+  }, [assignment, token]);
 
   // Submit handler
   const handleSubmit = async () => {
-    const validationError = validateForm();
-    if (validationError) {
-      setSnackbar({ open: true, message: validationError, severity: 'warning' });
+    // Basic validation: check if any fields are filled
+    const hasFormData = Object.values(formValues).some((v) => v && v.trim());
+    const hasCheckboxData = Object.values(checkboxValues).some((v) => v);
+    const hasSignatureData = Object.values(signatureValues).some((v) => v);
+
+    if (!hasFormData && !hasCheckboxData && !hasSignatureData) {
+      setSnackbar({ open: true, message: 'Please fill in at least some fields before submitting.', severity: 'warning' });
       return;
     }
 
     try {
       setSubmitting(true);
 
-      // Try to load the template PDF to fill
-      // The template file_name comes from the assignment data
+      // Auto-sync page-2 fields for the Consent form
+      const finalFormValues = { ...formValues };
+      const templateName = assignment?.template?.name || '';
+      if (templateName === CONSENT_TEMPLATE) {
+        for (const [target, source] of Object.entries(CONSENT_AUTO_SYNC)) {
+          if (finalFormValues[source]) {
+            finalFormValues[target] = finalFormValues[source];
+          }
+        }
+      }
+
       let pdfBlob;
 
-      try {
-        // Fetch the blank template PDF from public folder
-        const templateFileName = assignment?.template?.file_name || 'consent-homecare-service.pdf';
-        const templateUrl = `/templates/${templateFileName}`;
-        const templateResponse = await fetch(templateUrl);
-
-        if (templateResponse.ok) {
-          const templateBytes = await templateResponse.arrayBuffer();
-          const filledPdfBytes = await generateFilledPdf(templateBytes, formData, signatures);
-          pdfBlob = pdfBytesToBlob(filledPdfBytes);
-        } else {
-          // Fallback: generate a simple PDF with just the form data
-          console.warn('Template PDF not found, generating standalone PDF');
-          pdfBlob = await generateStandalonePdf(formData, signatures);
+      if (templateBytes && pdfFields.length > 0) {
+        // Fill the actual template PDF using form field API
+        try {
+          const filledPdfBytes = await fillPdfForm(
+            templateBytes,
+            finalFormValues,
+            checkboxValues,
+            signatureValues
+          );
+          pdfBlob = new Blob([filledPdfBytes], { type: 'application/pdf' });
+        } catch (pdfError) {
+          console.warn('PDF filling failed, generating standalone:', pdfError);
+          const allData = { ...formValues };
+          for (const [k, v] of Object.entries(checkboxValues)) {
+            if (v) allData[k] = true;
+          }
+          const standalonePdfBytes = await generateStandalonePdf(
+            allData,
+            assignment?.template?.name || 'Document'
+          );
+          pdfBlob = new Blob([standalonePdfBytes], { type: 'application/pdf' });
         }
-      } catch (pdfError) {
-        console.warn('PDF generation from template failed, using standalone:', pdfError);
-        pdfBlob = await generateStandalonePdf(formData, signatures);
+      } else {
+        // No template available — generate standalone
+        const allData = { ...formValues };
+        for (const [k, v] of Object.entries(checkboxValues)) {
+          if (v) allData[k] = true;
+        }
+        const standalonePdfBytes = await generateStandalonePdf(
+          allData,
+          assignment?.template?.name || 'Document'
+        );
+        pdfBlob = new Blob([standalonePdfBytes], { type: 'application/pdf' });
       }
 
       // Submit to backend
@@ -172,7 +248,7 @@ const FillForm = () => {
             Form Submitted!
           </Typography>
           <Typography color="text.secondary">
-            Thank you, {assignment?.employee_name}. Your onboarding form has been submitted successfully.
+            Thank you, {assignment?.employee_name}. Your form has been submitted successfully.
             You may close this tab.
           </Typography>
         </Paper>
@@ -192,44 +268,80 @@ const FillForm = () => {
             {assignment?.template?.name || 'Onboarding Document'}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Hello <strong>{assignment?.employee_name}</strong> — please fill in all sections below and sign where indicated.
+            Hello <strong>{assignment?.employee_name}</strong> — please fill in all the sections below and sign where indicated.
           </Typography>
           {assignment?.expires_at && (
             <Alert severity="info" sx={{ mt: 1.5, display: 'inline-flex' }}>
               This form expires on {new Date(assignment.expires_at).toLocaleString()}
             </Alert>
           )}
+          {pdfFields.length > 0 && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              {pdfFields.length} fields to complete
+            </Typography>
+          )}
         </Paper>
 
-        {/* Form */}
-        <ConsentHomecareForm
-          formData={formData}
-          onChange={setFormData}
-          signatures={signatures}
-          onSignatureChange={setSignatures}
-          disabled={submitting}
-        />
+        {/* Loading PDF template indicator */}
+        {loadingPdf && (
+          <Paper sx={{ p: 3, mb: 3, textAlign: 'center' }}>
+            <Stack alignItems="center" spacing={1.5}>
+              <CircularProgress size={32} />
+              <Typography color="text.secondary" variant="body2">
+                Loading form template...
+              </Typography>
+            </Stack>
+          </Paper>
+        )}
+
+        {/* Form — use custom layout for Consent form, generic for others */}
+        {!loadingPdf && assignment?.template?.name === CONSENT_TEMPLATE && (
+          <ConsentHomecareLayout
+            formValues={formValues}
+            checkboxValues={checkboxValues}
+            signatureValues={signatureValues}
+            onFormChange={setFormValues}
+            onCheckboxChange={setCheckboxValues}
+            onSignatureChange={setSignatureValues}
+            disabled={submitting}
+          />
+        )}
+        {!loadingPdf && assignment?.template?.name !== CONSENT_TEMPLATE && (
+          <DynamicPdfForm
+            fields={pdfFields}
+            formValues={formValues}
+            checkboxValues={checkboxValues}
+            signatureValues={signatureValues}
+            onFormChange={setFormValues}
+            onCheckboxChange={setCheckboxValues}
+            onSignatureChange={setSignatureValues}
+            disabled={submitting}
+            templateName={assignment?.template?.name || 'Document'}
+          />
+        )}
 
         {/* Submit */}
-        <Box sx={{ mt: 3, textAlign: 'center' }}>
-          <Button
-            variant="contained"
-            size="large"
-            startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
-            onClick={handleSubmit}
-            disabled={submitting}
-            sx={{
-              px: 5,
-              py: 1.5,
-              bgcolor: '#3574BB',
-              '&:hover': { bgcolor: '#2a5e9a' },
-              fontWeight: 600,
-              fontSize: '1rem',
-            }}
-          >
-            {submitting ? 'Submitting...' : 'Submit Form'}
-          </Button>
-        </Box>
+        {!loadingPdf && (
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+              onClick={handleSubmit}
+              disabled={submitting}
+              sx={{
+                px: 5,
+                py: 1.5,
+                bgcolor: '#3574BB',
+                '&:hover': { bgcolor: '#2a5e9a' },
+                fontWeight: 600,
+                fontSize: '1rem',
+              }}
+            >
+              {submitting ? 'Submitting...' : 'Submit Form'}
+            </Button>
+          </Box>
+        )}
 
         <Snackbar
           open={snackbar.open}
@@ -249,115 +361,5 @@ const FillForm = () => {
     </Box>
   );
 };
-
-/**
- * Fallback: create a standalone PDF with form data if template is unavailable.
- */
-async function generateStandalonePdf(formData, signatures) {
-  const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
-  const pdfDoc = await PDFDocument.create();
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-  // ─── Page 1 ───
-  const page1 = pdfDoc.addPage([612, 792]); // Letter size
-  let y = 750;
-  const leftMargin = 50;
-
-  page1.drawText('Consent for Homecare Service', { x: leftMargin, y, size: 18, font: boldFont, color: rgb(0.12, 0.23, 0.37) });
-  y -= 30;
-
-  const fields1 = [
-    ['Full Name', formData.clientName],
-    ['Address', formData.address],
-    ['Phone Number', formData.phoneNumber],
-    ['Date of Birth', formData.dateOfBirth],
-    ['Emergency Contact', formData.emergencyContact],
-    ['Emergency Phone', formData.emergencyPhone],
-    ['Initials', formData.consentInitials],
-    ['Date', formData.signatureDate],
-    ['Witness Name', formData.witnessName],
-  ];
-
-  for (const [label, value] of fields1) {
-    if (value) {
-      page1.drawText(`${label}: ${value}`, { x: leftMargin, y, size: 11, font, color: rgb(0, 0, 0) });
-      y -= 20;
-    }
-  }
-
-  // Consent checkboxes
-  const consents = [
-    ['Personal Care', formData.consentPersonalCare],
-    ['Medication', formData.consentMedication],
-    ['Emergency', formData.consentEmergency],
-    ['Privacy', formData.consentPrivacy],
-  ];
-  y -= 10;
-  for (const [label, checked] of consents) {
-    page1.drawText(`[${checked ? 'X' : ' '}] Consent - ${label}`, { x: leftMargin, y, size: 10, font, color: rgb(0, 0, 0) });
-    y -= 18;
-  }
-
-  // Embed client signature on page 1 if available
-  if (signatures.clientSignature) {
-    try {
-      const base64 = signatures.clientSignature.split(',')[1];
-      const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-      const image = await pdfDoc.embedPng(bytes);
-      const dims = image.scaleToFit(200, 60);
-      y -= 20;
-      page1.drawText('Client Signature:', { x: leftMargin, y, size: 10, font: boldFont, color: rgb(0, 0, 0) });
-      y -= dims.height + 5;
-      page1.drawImage(image, { x: leftMargin, y, width: dims.width, height: dims.height });
-      y -= 10;
-    } catch (e) {
-      console.error('Failed to embed client signature:', e);
-    }
-  }
-
-  // ─── Page 2 ───
-  const page2 = pdfDoc.addPage([612, 792]);
-  y = 750;
-
-  page2.drawText('Client Agreement', { x: leftMargin, y, size: 18, font: boldFont, color: rgb(0.12, 0.23, 0.37) });
-  y -= 30;
-
-  const fields2 = [
-    ['Client Name', formData.agreementClientName],
-    ['Service Plan', formData.servicePlan],
-    ['Start Date', formData.startDate],
-    ['Rate Per Hour', formData.ratePerHour ? `$${formData.ratePerHour}` : null],
-    ['Hours Per Week', formData.hoursPerWeek],
-    ['Date', formData.datePage2],
-    ['Representative Name', formData.representativeName],
-  ];
-
-  for (const [label, value] of fields2) {
-    if (value) {
-      page2.drawText(`${label}: ${value}`, { x: leftMargin, y, size: 11, font, color: rgb(0, 0, 0) });
-      y -= 20;
-    }
-  }
-
-  // Embed client signature on page 2
-  if (signatures.clientSignaturePage2) {
-    try {
-      const base64 = signatures.clientSignaturePage2.split(',')[1];
-      const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-      const image = await pdfDoc.embedPng(bytes);
-      const dims = image.scaleToFit(200, 60);
-      y -= 20;
-      page2.drawText('Client Signature:', { x: leftMargin, y, size: 10, font: boldFont, color: rgb(0, 0, 0) });
-      y -= dims.height + 5;
-      page2.drawImage(image, { x: leftMargin, y, width: dims.width, height: dims.height });
-    } catch (e) {
-      console.error('Failed to embed page2 signature:', e);
-    }
-  }
-
-  const pdfBytes = await pdfDoc.save();
-  return new Blob([pdfBytes], { type: 'application/pdf' });
-}
 
 export default FillForm;

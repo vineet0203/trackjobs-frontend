@@ -119,7 +119,7 @@ const OnboardingAssign = () => {
               <TextField
                 fullWidth
                 required
-                label="Employee Name"
+                label="Customer Name"
                 value={form.employee_name}
                 onChange={handleChange('employee_name')}
                 disabled={submitting}
@@ -130,7 +130,7 @@ const OnboardingAssign = () => {
                 fullWidth
                 required
                 type="email"
-                label="Employee Email"
+                label="Customer Email"
                 value={form.employee_email}
                 onChange={handleChange('employee_email')}
                 disabled={submitting}

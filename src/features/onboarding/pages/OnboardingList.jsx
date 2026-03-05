@@ -56,13 +56,13 @@ const OnboardingList = () => {
     fetchAssigned();
   }, [fetchAssigned]);
 
-  const handleDownload = async (id, employeeName) => {
+  const handleDownload = async (id, customerName) => {
     try {
       const blob = await onboardingService.downloadPdf(id);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${employeeName.replace(/\s+/g, '_')}_onboarding.pdf`;
+      link.download = `${customerName.replace(/\s+/g, '_')}_onboarding.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -110,7 +110,7 @@ const OnboardingList = () => {
           <Table>
             <TableHead>
               <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                <TableCell sx={{ fontWeight: 700 }}>Employee</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Customer</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Template</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>

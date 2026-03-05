@@ -1,4 +1,5 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { NAV_ITEMS } from '../../../../../utils/constants';
 import {
   LayoutDashboard,
@@ -15,16 +16,30 @@ import {
   Calendar1Icon,
   Book,
   Quote,
-  ClipboardCheck
+  ClipboardCheck,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 
 const Sidebar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [openMenus, setOpenMenus] = useState({});
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     navigate('/login');
+  };
+
+  const toggleSubmenu = (path) => {
+    setOpenMenus((prev) => ({ ...prev, [path]: !prev[path] }));
+  };
+
+  // Check if a parent's submenu should be considered active
+  const isParentActive = (item) => {
+    if (!item.children) return false;
+    return item.children.some((child) => location.pathname.startsWith(child.path));
   };
 
   const icons = {
@@ -53,27 +68,71 @@ const Sidebar = () => {
 
       {/* Navigation Menu */}
       <nav className="flex flex-col items-start p-0 gap-3 w-full mt-0.5">
-        {NAV_ITEMS.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) =>
-              `flex flex-col items-start py-1.5 px-5 gap-4 w-full h-8 cursor-pointer transition-colors duration-200 no-underline ${isActive
-                ? 'bg-[#165DAD] text-[#D3DFEB]'
-                : 'text-white hover:bg-[#3281da]'
-              }`
-            }
-          >
-            <div className="flex flex-row items-center p-0 gap-2.5 h-5">
-              <div className="w-5 h-5 flex items-center justify-center">
-                {getIcon(item.icon)}
-              </div>
-              <span className="font-poppins font-normal text-sm leading-[18px] whitespace-nowrap">
-                {item.label}
-              </span>
+        {NAV_ITEMS.map((item) => {
+          const hasChildren = item.children && item.children.length > 0;
+          const isExpanded = openMenus[item.path] || isParentActive(item);
+
+          return (
+            <div key={item.path} className="w-full">
+              {/* Main nav item */}
+              <NavLink
+                to={item.path}
+                onClick={(e) => {
+                  if (hasChildren) {
+                    toggleSubmenu(item.path);
+                  }
+                }}
+                className={({ isActive }) =>
+                  `flex flex-col items-start py-1.5 px-5 gap-4 w-full h-8 cursor-pointer transition-colors duration-200 no-underline ${(isActive || isParentActive(item))
+                    ? 'bg-[#165DAD] text-[#D3DFEB]'
+                    : 'text-white hover:bg-[#3281da]'
+                  }`
+                }
+              >
+                <div className="flex flex-row items-center p-0 gap-2.5 h-5 w-full">
+                  <div className="w-5 h-5 flex items-center justify-center">
+                    {getIcon(item.icon)}
+                  </div>
+                  <span className="font-poppins font-normal text-sm leading-[18px] whitespace-nowrap flex-1">
+                    {item.label}
+                  </span>
+                  {hasChildren && (
+                    <div className="w-4 h-4 flex items-center justify-center">
+                      {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </div>
+                  )}
+                </div>
+              </NavLink>
+
+              {/* Sub-items */}
+              {hasChildren && isExpanded && (
+                <div className="flex flex-col w-full">
+                  {item.children.map((child) => (
+                    <NavLink
+                      key={child.path}
+                      to={child.path}
+                      className={({ isActive }) =>
+                        `flex flex-col items-start py-1 pl-12 pr-5 w-full h-7 cursor-pointer transition-colors duration-200 no-underline ${isActive
+                          ? 'bg-[#165DAD] text-[#D3DFEB]'
+                          : 'text-white/70 hover:bg-[#3281da] hover:text-white'
+                        }`
+                      }
+                    >
+                      <div className="flex flex-row items-center p-0 gap-2 h-5">
+                        <div className="w-4 h-4 flex items-center justify-center">
+                          {getIcon(child.icon)}
+                        </div>
+                        <span className="font-poppins font-normal text-xs leading-[16px] whitespace-nowrap">
+                          {child.label}
+                        </span>
+                      </div>
+                    </NavLink>
+                  ))}
+                </div>
+              )}
             </div>
-          </NavLink>
-        ))}
+          );
+        })}
       </nav>
     </aside>
   );

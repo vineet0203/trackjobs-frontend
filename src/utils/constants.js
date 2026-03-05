@@ -23,7 +23,14 @@ export const APP_NAME = "TrakJobs";
 // Navigation Items
 export const NAV_ITEMS = [
   { path: "/dashboard", label: "Dashboard", icon: "dashboard" },
-  { path: "/customers", label: "Customers", icon: "customers" },
+  {
+    path: "/customers",
+    label: "Customers",
+    icon: "customers",
+    children: [
+      { path: "/onboarding", label: "Onboarding", icon: "onboarding" },
+    ],
+  },
   { path: "/quotes", label: "Quotes", icon: "quotes" },
   { path: "/jobs", label: "Jobs", icon: "jobs" },
 
@@ -31,7 +38,6 @@ export const NAV_ITEMS = [
   // { path: "/timesheets", label: "Timesheets", icon: "timesheets" },
   { path: "/online-booking", label: "Online Booking", icon: "booking" },
   { path: "/employees", label: "Employee Management", icon: "employees" },
-  { path: "/onboarding", label: "Onboarding", icon: "onboarding" },
   { path: "/invoices", label: "Invoices", icon: "invoices" },
 
   { path: "/reports", label: "Reports", icon: "reports" },
