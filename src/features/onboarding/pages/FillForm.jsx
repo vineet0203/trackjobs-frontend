@@ -17,11 +17,19 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import SendIcon from '@mui/icons-material/Send';
 import DynamicPdfForm from '../components/DynamicPdfForm';
 import ConsentHomecareLayout, { CONSENT_AUTO_SYNC } from '../components/ConsentHomecareLayout';
+import ConsentReleaseObtainLayout, { CONSENT_RELEASE_AUTO_SYNC } from '../components/ConsentReleaseObtainLayout';
+import AssignmentBenefitsLayout, { ASSIGNMENT_BENEFITS_AUTO_SYNC } from '../components/AssignmentBenefitsLayout';
+import AutomaticPaymentLayout, { AUTOMATIC_PAYMENT_AUTO_SYNC } from '../components/AutomaticPaymentLayout';
+import PhysicalAssessmentLayout, { PHYSICAL_ASSESSMENT_AUTO_SYNC } from '../components/PhysicalAssessmentLayout';
 import onboardingService from '../services/onboardingService';
 import { extractFormFields, fillPdfForm, generateStandalonePdf } from '../utils/pdfFormFiller';
 
-// Template names that have custom form layouts
+// Template names that have custom form layouts (must match backend DocumentTemplateSeeder `name` field)
 const CONSENT_TEMPLATE = 'Consent for Homecare Services';
+const CONSENT_RELEASE_TEMPLATE = 'Consent to Release/Obtain Information';
+const ASSIGNMENT_BENEFITS_TEMPLATE = 'Assignment of Benefits';
+const AUTOMATIC_PAYMENT_TEMPLATE = 'Automatic Payment Authorization';
+const PHYSICAL_ASSESSMENT_TEMPLATE = 'Physical Assessment';
 
 const FillForm = () => {
   const { token } = useParams();
@@ -96,6 +104,15 @@ const FillForm = () => {
           preFill['Date_3'] = today;
           preFill['Date_4'] = today;
           setFormValues((prev) => ({ ...preFill, ...prev }));
+        } else if (templateName === CONSENT_RELEASE_TEMPLATE) {
+          // Consent to Release form — pre-fill client name + today's date
+          const preFill = {};
+          if (employeeName) {
+            preFill['Client Name'] = employeeName;
+            preFill['Print Name of Person Giving Consent'] = employeeName;
+          }
+          preFill['Date'] = today;
+          setFormValues((prev) => ({ ...preFill, ...prev }));
         } else if (employeeName) {
           // Generic forms — pre-fill common client-name fields
           const preFill = {};
@@ -147,11 +164,17 @@ const FillForm = () => {
     try {
       setSubmitting(true);
 
-      // Auto-sync page-2 fields for the Consent form
+      // Auto-sync page-2 fields for forms that need it
       const finalFormValues = { ...formValues };
       const templateName = assignment?.template?.name || '';
       if (templateName === CONSENT_TEMPLATE) {
         for (const [target, source] of Object.entries(CONSENT_AUTO_SYNC)) {
+          if (finalFormValues[source]) {
+            finalFormValues[target] = finalFormValues[source];
+          }
+        }
+      } else if (templateName === CONSENT_RELEASE_TEMPLATE) {
+        for (const [target, source] of Object.entries(CONSENT_RELEASE_AUTO_SYNC)) {
           if (finalFormValues[source]) {
             finalFormValues[target] = finalFormValues[source];
           }
@@ -299,7 +322,7 @@ const FillForm = () => {
           </Paper>
         )}
 
-        {/* Form — use custom layout for Consent form, generic for others */}
+        {/* Form — use custom layout for specific forms, generic for others */}
         {!loadingPdf && assignment?.template?.name === CONSENT_TEMPLATE && (
           <ConsentHomecareLayout
             formValues={formValues}
@@ -311,7 +334,57 @@ const FillForm = () => {
             disabled={submitting}
           />
         )}
-        {!loadingPdf && assignment?.template?.name !== CONSENT_TEMPLATE && (
+        {!loadingPdf && assignment?.template?.name === CONSENT_RELEASE_TEMPLATE && (
+          <ConsentReleaseObtainLayout
+            formValues={formValues}
+            checkboxValues={checkboxValues}
+            signatureValues={signatureValues}
+            onFormChange={setFormValues}
+            onCheckboxChange={setCheckboxValues}
+            onSignatureChange={setSignatureValues}
+            disabled={submitting}
+          />
+        )}
+        {!loadingPdf && assignment?.template?.name === ASSIGNMENT_BENEFITS_TEMPLATE && (
+          <AssignmentBenefitsLayout
+            formValues={formValues}
+            checkboxValues={checkboxValues}
+            signatureValues={signatureValues}
+            onFormChange={setFormValues}
+            onCheckboxChange={setCheckboxValues}
+            onSignatureChange={setSignatureValues}
+            disabled={submitting}
+          />
+        )}
+        {!loadingPdf && assignment?.template?.name === AUTOMATIC_PAYMENT_TEMPLATE && (
+          <AutomaticPaymentLayout
+            formValues={formValues}
+            checkboxValues={checkboxValues}
+            signatureValues={signatureValues}
+            onFormChange={setFormValues}
+            onCheckboxChange={setCheckboxValues}
+            onSignatureChange={setSignatureValues}
+            disabled={submitting}
+          />
+        )}
+        {!loadingPdf && assignment?.template?.name === PHYSICAL_ASSESSMENT_TEMPLATE && (
+          <PhysicalAssessmentLayout
+            formValues={formValues}
+            checkboxValues={checkboxValues}
+            signatureValues={signatureValues}
+            onFormChange={setFormValues}
+            onCheckboxChange={setCheckboxValues}
+            onSignatureChange={setSignatureValues}
+            disabled={submitting}
+          />
+        )}
+        {!loadingPdf && ![
+          CONSENT_TEMPLATE,
+          CONSENT_RELEASE_TEMPLATE,
+          ASSIGNMENT_BENEFITS_TEMPLATE,
+          AUTOMATIC_PAYMENT_TEMPLATE,
+          PHYSICAL_ASSESSMENT_TEMPLATE
+        ].includes(assignment?.template?.name) && (
           <DynamicPdfForm
             fields={pdfFields}
             formValues={formValues}

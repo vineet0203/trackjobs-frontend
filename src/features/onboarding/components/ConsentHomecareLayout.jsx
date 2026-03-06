@@ -250,9 +250,36 @@ const ConsentHomecareLayout = ({
       {/* ═══════ CLIENT INFORMATION ═══════ */}
       <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
         <SectionHeader title="Client Information" />
+        <Typography variant="body2" sx={{ mb: 2, color: '#666', fontSize: '0.85rem' }}>
+          Please enter the client's full legal name and date of birth.
+        </Typography>
         <Grid container spacing={2}>
-          <TF name={F.CLIENT_NAME} label="Client Name" grid={{ xs: 12, sm: 8 }} />
-          <TF name={F.DOB} label="Date of Birth" grid={{ xs: 12, sm: 4 }} type="date" />
+          <Grid item xs={12} sm={8}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Client's Full Legal Name"
+              value={formValues[F.CLIENT_NAME] || ''}
+              onChange={handleText(F.CLIENT_NAME)}
+              disabled={disabled}
+              placeholder="Enter client's full name (First Middle Last)"
+              helperText="The person receiving homecare services"
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Date of Birth"
+              type="date"
+              value={formValues[F.DOB] || ''}
+              onChange={handleText(F.DOB)}
+              disabled={disabled}
+              helperText="Client's birth date"
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
         </Grid>
       </Paper>
 
@@ -292,7 +319,19 @@ const ConsentHomecareLayout = ({
 
         {/* Frequency by Discipline */}
         <Grid container spacing={2} sx={{ mb: 2.5 }}>
-          <TF name={F.FREQUENCY} label="Frequency by Discipline" grid={{ xs: 12 }} />
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Frequency by Discipline"
+              value={formValues[F.FREQUENCY] || ''}
+              onChange={handleText(F.FREQUENCY)}
+              disabled={disabled}
+              placeholder="e.g., 3x/week for 4 hours, Daily AM & PM visits"
+              helperText="Describe how often each type of service will be provided"
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
         </Grid>
 
         {/* Billing Cycle */}
@@ -324,12 +363,14 @@ const ConsentHomecareLayout = ({
               </Typography>
               <TextField
                 size="small"
-                label="Amount ($)"
+                label="Estimated Co-pay/Deductible Amount"
                 value={formValues[F.PAY_INSURANCE_AMT] || ''}
                 onChange={handleText(F.PAY_INSURANCE_AMT)}
                 disabled={disabled}
+                placeholder="$ Amount"
+                helperText="Your estimated out-of-pocket cost"
                 InputLabelProps={{ shrink: true }}
-                sx={{ width: 200 }}
+                sx={{ width: 250 }}
               />
             </Box>
           </Box>
@@ -352,12 +393,14 @@ const ConsentHomecareLayout = ({
               </Typography>
               <TextField
                 size="small"
-                label="Charges ($)"
+                label="Service Charges"
                 value={formValues[F.PAY_PRIVATE_AMT] || ''}
                 onChange={handleText(F.PAY_PRIVATE_AMT)}
                 disabled={disabled}
+                placeholder="$ Amount per service"
+                helperText="Charges based on service type and frequency"
                 InputLabelProps={{ shrink: true }}
-                sx={{ width: 200 }}
+                sx={{ width: 250 }}
               />
             </Box>
           </Box>
@@ -379,12 +422,14 @@ const ConsentHomecareLayout = ({
               </Typography>
               <TextField
                 size="small"
-                label="Amount ($)"
+                label="Other Payment Source Amount"
                 value={formValues[F.PAY_OTHER_AMT] || ''}
                 onChange={handleText(F.PAY_OTHER_AMT)}
                 disabled={disabled}
+                placeholder="$ Amount"
+                helperText="e.g., Grant, VA benefits, etc."
                 InputLabelProps={{ shrink: true }}
-                sx={{ width: 200 }}
+                sx={{ width: 250 }}
               />
             </Box>
           </Box>
@@ -404,24 +449,28 @@ const ConsentHomecareLayout = ({
               <Typography variant="body2" sx={{ mb: 0.75 }}>
                 2 Week Deposit based on:
               </Typography>
-              <Box sx={{ display: 'flex', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
                 <TextField
                   size="small"
-                  label="Hours / Week"
+                  label="Hours per Week"
                   value={formValues[F.PAY_DEPOSIT_HRS] || ''}
                   onChange={handleText(F.PAY_DEPOSIT_HRS)}
                   disabled={disabled}
+                  placeholder="e.g., 20 hrs"
+                  helperText="Weekly service hours"
                   InputLabelProps={{ shrink: true }}
-                  sx={{ width: 160 }}
+                  sx={{ width: 180 }}
                 />
                 <TextField
                   size="small"
-                  label="Amount ($)"
+                  label="Deposit Amount"
                   value={formValues[F.PAY_DEPOSIT_AMT] || ''}
                   onChange={handleText(F.PAY_DEPOSIT_AMT)}
                   disabled={disabled}
+                  placeholder="$ Amount"
+                  helperText="2-week deposit amount"
                   InputLabelProps={{ shrink: true }}
-                  sx={{ width: 160 }}
+                  sx={{ width: 180 }}
                 />
               </Box>
             </Box>
@@ -518,10 +567,12 @@ const ConsentHomecareLayout = ({
                 <TextField
                   fullWidth
                   size="small"
-                  label="Name"
+                  label="Person's Name Who Has Copy"
                   value={formValues[F.AD_NAME_TEXT] || ''}
                   onChange={handleText(F.AD_NAME_TEXT)}
                   disabled={disabled}
+                  placeholder="Enter full name of person holding your directive"
+                  helperText="Who has a copy of your Advance Directive?"
                   InputLabelProps={{ shrink: true }}
                 />
               </Grid>
@@ -529,10 +580,12 @@ const ConsentHomecareLayout = ({
                 <TextField
                   fullWidth
                   size="small"
-                  label="Relationship"
+                  label="Their Relationship to You"
                   value={formValues[F.AD_RELATIONSHIP] || ''}
                   onChange={handleText(F.AD_RELATIONSHIP)}
                   disabled={disabled}
+                  placeholder="e.g., Spouse, Child, Attorney, Doctor"
+                  helperText="Their relationship to the client"
                   InputLabelProps={{ shrink: true }}
                 />
               </Grid>
@@ -561,10 +614,12 @@ const ConsentHomecareLayout = ({
               <TextField
                 fullWidth
                 size="small"
-                label="Representative Name"
+                label="Healthcare Representative / POA Name"
                 value={formValues[F.AD_REP_NAME] || ''}
                 onChange={handleText(F.AD_REP_NAME)}
                 disabled={disabled}
+                placeholder="Enter representative's full legal name"
+                helperText="Person authorized to make medical decisions"
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -572,10 +627,12 @@ const ConsentHomecareLayout = ({
               <TextField
                 fullWidth
                 size="small"
-                label="Phone"
+                label="Representative's Phone Number"
                 value={formValues[F.AD_REP_PHONE] || ''}
                 onChange={handleText(F.AD_REP_PHONE)}
                 disabled={disabled}
+                placeholder="(XXX) XXX-XXXX"
+                helperText="Contact number for your representative"
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -592,9 +649,10 @@ const ConsentHomecareLayout = ({
         />
 
         {/* Client Signature */}
-        <SubSection title="Client Signature">
+        <SubSection title="Client Signature" caption="The client or person receiving services must sign below">
           <SignaturePad
-            label="Sign here"
+            label="Client's Signature - Sign here"
+            value={signatureValues[F.CLIENT_SIG]}
             onChange={handleSignature(F.CLIENT_SIG)}
             disabled={disabled}
           />
@@ -603,10 +661,12 @@ const ConsentHomecareLayout = ({
               <TextField
                 fullWidth
                 size="small"
-                label="Phone Number"
+                label="Client's Phone Number"
                 value={formValues[F.CLIENT_PHONE] || ''}
                 onChange={handleText(F.CLIENT_PHONE)}
                 disabled={disabled}
+                placeholder="(XXX) XXX-XXXX"
+                helperText="Your contact phone number"
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -615,10 +675,11 @@ const ConsentHomecareLayout = ({
                 fullWidth
                 size="small"
                 type="date"
-                label="Date"
+                label="Date of Signature"
                 value={formValues[F.CLIENT_DATE] || ''}
                 onChange={handleText(F.CLIENT_DATE)}
                 disabled={disabled}
+                helperText="Today's date"
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -626,10 +687,12 @@ const ConsentHomecareLayout = ({
               <TextField
                 fullWidth
                 size="small"
-                label="Witness"
+                label="Witness Name"
                 value={formValues[F.CLIENT_WITNESS] || ''}
                 onChange={handleText(F.CLIENT_WITNESS)}
                 disabled={disabled}
+                placeholder="Enter witness's full name"
+                helperText="Person witnessing this signature"
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -639,10 +702,11 @@ const ConsentHomecareLayout = ({
         {/* Representative Signature */}
         <SubSection
           title="Representative Signature"
-          caption="Required only if client is unable to sign"
+          caption="Required ONLY if client is unable to sign. Include reason why client cannot sign."
         >
           <SignaturePad
-            label="Representative sign here"
+            label="Representative's Signature - Sign if client cannot"
+            value={signatureValues[F.REP_SIG]}
             onChange={handleSignature(F.REP_SIG)}
             disabled={disabled}
           />
@@ -652,10 +716,11 @@ const ConsentHomecareLayout = ({
                 fullWidth
                 size="small"
                 type="date"
-                label="Date"
+                label="Date of Signature"
                 value={formValues[F.REP_DATE] || ''}
                 onChange={handleText(F.REP_DATE)}
                 disabled={disabled}
+                helperText="Today's date"
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -663,10 +728,12 @@ const ConsentHomecareLayout = ({
               <TextField
                 fullWidth
                 size="small"
-                label="Witness"
+                label="Witness Name"
                 value={formValues[F.REP_WITNESS] || ''}
                 onChange={handleText(F.REP_WITNESS)}
                 disabled={disabled}
+                placeholder="Enter witness's full name"
+                helperText="Person witnessing this signature"
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -674,16 +741,18 @@ const ConsentHomecareLayout = ({
         </SubSection>
 
         {/* Secondary Guarantor */}
-        <SubSection title="Secondary Guarantor">
+        <SubSection title="Secondary Guarantor" caption="Person who guarantees payment if client does not pay">
           <Grid container spacing={1.5}>
             <Grid item xs={12} sm={3}>
               <TextField
                 fullWidth
                 size="small"
-                label="Name"
+                label="Guarantor's Full Name"
                 value={formValues[F.SEC_NAME] || ''}
                 onChange={handleText(F.SEC_NAME)}
                 disabled={disabled}
+                placeholder="Enter guarantor's name"
+                helperText="Person guaranteeing payment"
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -691,10 +760,12 @@ const ConsentHomecareLayout = ({
               <TextField
                 fullWidth
                 size="small"
-                label="Phone Number"
+                label="Guarantor's Phone"
                 value={formValues[F.SEC_PHONE] || ''}
                 onChange={handleText(F.SEC_PHONE)}
                 disabled={disabled}
+                placeholder="(XXX) XXX-XXXX"
+                helperText="Contact number"
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -707,6 +778,7 @@ const ConsentHomecareLayout = ({
                 value={formValues[F.SEC_DATE] || ''}
                 onChange={handleText(F.SEC_DATE)}
                 disabled={disabled}
+                helperText="Today's date"
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -714,10 +786,12 @@ const ConsentHomecareLayout = ({
               <TextField
                 fullWidth
                 size="small"
-                label="Witness"
+                label="Witness Name"
                 value={formValues[F.SEC_WITNESS] || ''}
                 onChange={handleText(F.SEC_WITNESS)}
                 disabled={disabled}
+                placeholder="Witness name"
+                helperText="Person witnessing"
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -725,16 +799,18 @@ const ConsentHomecareLayout = ({
         </SubSection>
 
         {/* Tertiary Guarantor */}
-        <SubSection title="Tertiary Guarantor" sx={{ mb: 0 }}>
+        <SubSection title="Tertiary Guarantor" caption="Additional backup guarantor (optional)" sx={{ mb: 0 }}>
           <Grid container spacing={1.5}>
             <Grid item xs={12} sm={3}>
               <TextField
                 fullWidth
                 size="small"
-                label="Name"
+                label="Guarantor's Full Name"
                 value={formValues[F.TER_NAME] || ''}
                 onChange={handleText(F.TER_NAME)}
                 disabled={disabled}
+                placeholder="Enter guarantor's name"
+                helperText="Third guarantor (if needed)"
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -742,10 +818,12 @@ const ConsentHomecareLayout = ({
               <TextField
                 fullWidth
                 size="small"
-                label="Phone Number"
+                label="Guarantor's Phone"
                 value={formValues[F.TER_PHONE] || ''}
                 onChange={handleText(F.TER_PHONE)}
                 disabled={disabled}
+                placeholder="(XXX) XXX-XXXX"
+                helperText="Contact number"
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -758,6 +836,7 @@ const ConsentHomecareLayout = ({
                 value={formValues[F.TER_DATE] || ''}
                 onChange={handleText(F.TER_DATE)}
                 disabled={disabled}
+                helperText="Today's date"
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -765,10 +844,12 @@ const ConsentHomecareLayout = ({
               <TextField
                 fullWidth
                 size="small"
-                label="Witness"
+                label="Witness Name"
                 value={formValues[F.TER_WITNESS] || ''}
                 onChange={handleText(F.TER_WITNESS)}
                 disabled={disabled}
+                placeholder="Witness name"
+                helperText="Person witnessing"
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
