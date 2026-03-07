@@ -21,8 +21,18 @@ import ConsentReleaseObtainLayout, { CONSENT_RELEASE_AUTO_SYNC } from '../compon
 import AssignmentBenefitsLayout, { ASSIGNMENT_BENEFITS_AUTO_SYNC } from '../components/AssignmentBenefitsLayout';
 import AutomaticPaymentLayout, { AUTOMATIC_PAYMENT_AUTO_SYNC } from '../components/AutomaticPaymentLayout';
 import PhysicalAssessmentLayout, { PHYSICAL_ASSESSMENT_AUTO_SYNC } from '../components/PhysicalAssessmentLayout';
+import VehicleReleaseWaiverLayout, { VEHICLE_RELEASE_AUTO_SYNC } from '../components/VehicleReleaseWaiverLayout';
+import InfantChildAssessmentLayout, { INFANT_CHILD_ASSESSMENT_AUTO_SYNC } from '../components/InfantChildAssessmentLayout';
+import PersonalAssistantsMayNotDoLayout, { PERSONAL_ASSISTANTS_MAY_NOT_DO_AUTO_SYNC } from '../components/PersonalAssistantsMayNotDoLayout';
+import ParticipantAgreementReleaseLayout, { PARTICIPANT_AGREEMENT_RELEASE_AUTO_SYNC } from '../components/ParticipantAgreementReleaseLayout';
+import ClientHandbookAcknowledgementLayout, { CLIENT_HANDBOOK_ACK_AUTO_SYNC } from '../components/ClientHandbookAcknowledgementLayout';
+import CareInstructionsLayout, { CARE_INSTRUCTIONS_AUTO_SYNC } from '../components/CareInstructionsLayout';
+import CarePlanAcknowledgementLayout, { CARE_PLAN_ACK_AUTO_SYNC } from '../components/CarePlanAcknowledgementLayout';
+import EmergencyPlanLayout, { EMERGENCY_PLAN_AUTO_SYNC } from '../components/EmergencyPlanLayout';
+import HomeEnvironmentSafetyLayout, { HOME_ENVIRONMENT_SAFETY_AUTO_SYNC } from '../components/HomeEnvironmentSafetyLayout';
+import CaseNotesLayout, { CASE_NOTES_AUTO_SYNC } from '../components/CaseNotesLayout';
 import onboardingService from '../services/onboardingService';
-import { extractFormFields, fillPdfForm, generateStandalonePdf } from '../utils/pdfFormFiller';
+import { extractFormFields, fillPdfForm, generateStandalonePdf, fillCaseNotesPdf } from '../utils/pdfFormFiller';
 
 // Template names that have custom form layouts (must match backend DocumentTemplateSeeder `name` field)
 const CONSENT_TEMPLATE = 'Consent for Homecare Services';
@@ -30,6 +40,16 @@ const CONSENT_RELEASE_TEMPLATE = 'Consent to Release/Obtain Information';
 const ASSIGNMENT_BENEFITS_TEMPLATE = 'Assignment of Benefits';
 const AUTOMATIC_PAYMENT_TEMPLATE = 'Automatic Payment Authorization';
 const PHYSICAL_ASSESSMENT_TEMPLATE = 'Physical Assessment';
+const VEHICLE_RELEASE_TEMPLATE = 'Vehicle Release & Waiver';
+const INFANT_CHILD_ASSESSMENT_TEMPLATE = 'Infant/Child Assessment';
+const PERSONAL_ASSISTANTS_TEMPLATE = 'Personal Assistants May Not Do';
+const PARTICIPANT_AGREEMENT_TEMPLATE = 'Participant Agreement & Release';
+const CLIENT_HANDBOOK_TEMPLATE = 'Client Handbook Acknowledgement';
+const CARE_INSTRUCTIONS_TEMPLATE = 'Care Instructions';
+const CARE_PLAN_ACK_TEMPLATE = 'Care Plan Acknowledgement';
+const EMERGENCY_PLAN_TEMPLATE = 'Emergency Plan';
+const HOME_ENVIRONMENT_SAFETY_TEMPLATE = 'Home Environment Safety Checklist';
+const CASE_NOTES_TEMPLATE = 'Case Notes';
 
 const FillForm = () => {
   const { token } = useParams();
@@ -89,6 +109,9 @@ const FillForm = () => {
         // Extract form fields from the PDF
         const fields = await extractFormFields(pdfArrayBuffer);
         setPdfFields(fields);
+        
+        // Debug: Log extracted field names to help identify PDF structure
+        console.log('📋 Extracted PDF fields:', fields.map(f => ({ name: f.name, type: f.type })));
 
         // Pre-fill fields based on template
         const employeeName = assignment.employee_name || '';
@@ -206,16 +229,29 @@ const FillForm = () => {
           pdfBlob = new Blob([standalonePdfBytes], { type: 'application/pdf' });
         }
       } else {
-        // No template available — generate standalone
-        const allData = { ...formValues };
-        for (const [k, v] of Object.entries(checkboxValues)) {
-          if (v) allData[k] = true;
+        // No fillable fields — check for special templates that need overlay
+        const templateName = assignment?.template?.name;
+        
+        if (templateName === CASE_NOTES_TEMPLATE && templateBytes) {
+          // Case Notes: overlay text on the original PDF template
+          const overlayPdfBytes = await fillCaseNotesPdf(
+            templateBytes,
+            finalFormValues,
+            signatureValues
+          );
+          pdfBlob = new Blob([overlayPdfBytes], { type: 'application/pdf' });
+        } else {
+          // Fallback: generate standalone PDF
+          const allData = { ...formValues };
+          for (const [k, v] of Object.entries(checkboxValues)) {
+            if (v) allData[k] = true;
+          }
+          const standalonePdfBytes = await generateStandalonePdf(
+            allData,
+            templateName || 'Document'
+          );
+          pdfBlob = new Blob([standalonePdfBytes], { type: 'application/pdf' });
         }
-        const standalonePdfBytes = await generateStandalonePdf(
-          allData,
-          assignment?.template?.name || 'Document'
-        );
-        pdfBlob = new Blob([standalonePdfBytes], { type: 'application/pdf' });
       }
 
       // Submit to backend
@@ -378,12 +414,132 @@ const FillForm = () => {
             disabled={submitting}
           />
         )}
+        {!loadingPdf && assignment?.template?.name === VEHICLE_RELEASE_TEMPLATE && (
+          <VehicleReleaseWaiverLayout
+            formValues={formValues}
+            checkboxValues={checkboxValues}
+            signatureValues={signatureValues}
+            onFormChange={setFormValues}
+            onCheckboxChange={setCheckboxValues}
+            onSignatureChange={setSignatureValues}
+            disabled={submitting}
+          />
+        )}
+        {!loadingPdf && assignment?.template?.name === INFANT_CHILD_ASSESSMENT_TEMPLATE && (
+          <InfantChildAssessmentLayout
+            formValues={formValues}
+            checkboxValues={checkboxValues}
+            signatureValues={signatureValues}
+            onFormChange={setFormValues}
+            onCheckboxChange={setCheckboxValues}
+            onSignatureChange={setSignatureValues}
+            disabled={submitting}
+          />
+        )}
+        {!loadingPdf && assignment?.template?.name === PERSONAL_ASSISTANTS_TEMPLATE && (
+          <PersonalAssistantsMayNotDoLayout
+            formValues={formValues}
+            checkboxValues={checkboxValues}
+            signatureValues={signatureValues}
+            onFormChange={setFormValues}
+            onCheckboxChange={setCheckboxValues}
+            onSignatureChange={setSignatureValues}
+            disabled={submitting}
+          />
+        )}
+        {!loadingPdf && assignment?.template?.name === PARTICIPANT_AGREEMENT_TEMPLATE && (
+          <ParticipantAgreementReleaseLayout
+            formValues={formValues}
+            checkboxValues={checkboxValues}
+            signatureValues={signatureValues}
+            onFormChange={setFormValues}
+            onCheckboxChange={setCheckboxValues}
+            onSignatureChange={setSignatureValues}
+            disabled={submitting}
+          />
+        )}
+        {!loadingPdf && assignment?.template?.name === CLIENT_HANDBOOK_TEMPLATE && (
+          <ClientHandbookAcknowledgementLayout
+            formValues={formValues}
+            checkboxValues={checkboxValues}
+            signatureValues={signatureValues}
+            onFormChange={setFormValues}
+            onCheckboxChange={setCheckboxValues}
+            onSignatureChange={setSignatureValues}
+            disabled={submitting}
+          />
+        )}
+        {!loadingPdf && assignment?.template?.name === CARE_INSTRUCTIONS_TEMPLATE && (
+          <CareInstructionsLayout
+            formValues={formValues}
+            checkboxValues={checkboxValues}
+            signatureValues={signatureValues}
+            onFormChange={setFormValues}
+            onCheckboxChange={setCheckboxValues}
+            onSignatureChange={setSignatureValues}
+            disabled={submitting}
+          />
+        )}
+        {!loadingPdf && assignment?.template?.name === CARE_PLAN_ACK_TEMPLATE && (
+          <CarePlanAcknowledgementLayout
+            formValues={formValues}
+            checkboxValues={checkboxValues}
+            signatureValues={signatureValues}
+            onFormChange={setFormValues}
+            onCheckboxChange={setCheckboxValues}
+            onSignatureChange={setSignatureValues}
+            disabled={submitting}
+          />
+        )}
+        {!loadingPdf && assignment?.template?.name === EMERGENCY_PLAN_TEMPLATE && (
+          <EmergencyPlanLayout
+            formValues={formValues}
+            checkboxValues={checkboxValues}
+            signatureValues={signatureValues}
+            onFormChange={setFormValues}
+            onCheckboxChange={setCheckboxValues}
+            onSignatureChange={setSignatureValues}
+            disabled={submitting}
+          />
+        )}
+        {!loadingPdf && assignment?.template?.name === HOME_ENVIRONMENT_SAFETY_TEMPLATE && (
+          <HomeEnvironmentSafetyLayout
+            formValues={formValues}
+            checkboxValues={checkboxValues}
+            signatureValues={signatureValues}
+            onFormChange={setFormValues}
+            onCheckboxChange={setCheckboxValues}
+            onSignatureChange={setSignatureValues}
+            disabled={submitting}
+          />
+        )}
+        {!loadingPdf && assignment?.template?.name === CASE_NOTES_TEMPLATE && (
+          <CaseNotesLayout
+            formValues={formValues}
+            checkboxValues={checkboxValues}
+            signatureValues={signatureValues}
+            onFormChange={setFormValues}
+            onCheckboxChange={setCheckboxValues}
+            onSignatureChange={setSignatureValues}
+            disabled={submitting}
+          />
+        )}
         {!loadingPdf && ![
           CONSENT_TEMPLATE,
           CONSENT_RELEASE_TEMPLATE,
           ASSIGNMENT_BENEFITS_TEMPLATE,
           AUTOMATIC_PAYMENT_TEMPLATE,
-          PHYSICAL_ASSESSMENT_TEMPLATE
+          PHYSICAL_ASSESSMENT_TEMPLATE,
+          VEHICLE_RELEASE_TEMPLATE,
+          INFANT_CHILD_ASSESSMENT_TEMPLATE,
+          PERSONAL_ASSISTANTS_TEMPLATE,
+          PARTICIPANT_AGREEMENT_TEMPLATE,
+          CLIENT_HANDBOOK_TEMPLATE,
+          CARE_INSTRUCTIONS_TEMPLATE,
+          CARE_PLAN_ACK_TEMPLATE,
+          EMERGENCY_PLAN_TEMPLATE,
+          HOME_ENVIRONMENT_SAFETY_TEMPLATE,
+          CASE_NOTES_TEMPLATE
         ].includes(assignment?.template?.name) && (
           <DynamicPdfForm
             fields={pdfFields}

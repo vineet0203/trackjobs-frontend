@@ -343,9 +343,18 @@ export async function generateStandalonePdf(formData, templateName = 'Document')
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  const page = pdfDoc.addPage([612, 792]);
+  let page = pdfDoc.addPage([612, 792]);
   let y = 750;
   const leftMargin = 50;
+
+  // Helper to add new page if needed
+  const ensureSpace = (needed = 18) => {
+    if (y < 60 + needed) {
+      page = pdfDoc.addPage([612, 792]);
+      y = 750;
+    }
+    return page;
+  };
 
   // Title
   page.drawText(templateName, {
@@ -369,17 +378,77 @@ export async function generateStandalonePdf(formData, templateName = 'Document')
   // Write all form data fields
   for (const [key, value] of Object.entries(formData)) {
     if (value == null || value === '' || value === false) continue;
-    if (y < 60) {
-      // New page
-      const newPage = pdfDoc.addPage([612, 792]);
-      y = 750;
+    
+    // Handle Case Notes array specially
+    if (key === 'caseNotes' && Array.isArray(value)) {
+      ensureSpace(40);
+      page.drawText('Case Notes:', {
+        x: leftMargin,
+        y,
+        size: 12,
+        font: boldFont,
+        color: rgb(0.12, 0.23, 0.37),
+      });
+      y -= 25;
+      
+      // Draw table header
+      ensureSpace(20);
+      page.drawText('Date', { x: leftMargin, y, size: 10, font: boldFont });
+      page.drawText('Time', { x: leftMargin + 100, y, size: 10, font: boldFont });
+      page.drawText('Notes', { x: leftMargin + 180, y, size: 10, font: boldFont });
+      y -= 5;
+      page.drawLine({ start: { x: leftMargin, y }, end: { x: 562, y }, thickness: 0.5 });
+      y -= 15;
+      
+      // Draw each note entry
+      for (const note of value) {
+        if (!note.date && !note.time && !note.notes) continue;
+        ensureSpace(40);
+        
+        page.drawText(note.date || '-', { x: leftMargin, y, size: 9, font });
+        page.drawText(note.time || '-', { x: leftMargin + 100, y, size: 9, font });
+        
+        // Handle long notes with word wrap
+        const notesText = note.notes || '-';
+        const maxWidth = 330;
+        const words = notesText.split(' ');
+        let line = '';
+        let lineY = y;
+        
+        for (const word of words) {
+          const testLine = line + (line ? ' ' : '') + word;
+          const testWidth = font.widthOfTextAtSize(testLine, 9);
+          
+          if (testWidth > maxWidth && line) {
+            ensureSpace(15);
+            page.drawText(line, { x: leftMargin + 180, y: lineY, size: 9, font });
+            lineY -= 12;
+            line = word;
+          } else {
+            line = testLine;
+          }
+        }
+        if (line) {
+          ensureSpace(15);
+          page.drawText(line, { x: leftMargin + 180, y: lineY, size: 9, font });
+          lineY -= 12;
+        }
+        
+        y = Math.min(y - 20, lineY - 5);
+        page.drawLine({ start: { x: leftMargin, y: y + 10 }, end: { x: 562, y: y + 10 }, thickness: 0.25, color: rgb(0.8, 0.8, 0.8) });
+      }
+      y -= 10;
+      continue;
     }
+    
+    // Skip arrays/objects that aren't specially handled
+    if (typeof value === 'object') continue;
 
+    ensureSpace(18);
     const label = fieldNameToLabel(key);
     const displayValue = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
 
-    const currentPage = pdfDoc.getPages()[pdfDoc.getPageCount() - 1];
-    currentPage.drawText(`${label}: ${displayValue}`, {
+    page.drawText(`${label}: ${displayValue}`, {
       x: leftMargin,
       y,
       size: 10,
@@ -388,6 +457,119 @@ export async function generateStandalonePdf(formData, templateName = 'Document')
     });
     y -= 18;
   }
+
+  return await pdfDoc.save();
+}
+
+/**
+ * Fill Case Notes PDF by overlaying text on the original template.
+ * Used when PDF template has no fillable form fields.
+ */
+export async function fillCaseNotesPdf(templateBytes, formData, signatureValues = {}) {
+  const pdfDoc = await PDFDocument.load(templateBytes);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const pages = pdfDoc.getPages();
+  const page = pages[0];
+  
+  // Text style config
+  const fontSize = 10;
+  const textColor = rgb(0, 0, 0);
+
+  // Helper to draw text
+  const drawText = (text, x, y) => {
+    if (!text) return;
+    page.drawText(String(text), { x, y, size: fontSize, font, color: textColor });
+  };
+
+  // Header fields - coordinates based on typical Case Notes layout
+  // These may need adjustment based on actual PDF template
+  drawText(formData['Client ID'], 120, 715);
+  drawText(formData['Client Name'], 120, 695);
+  drawText(formData['Client DOB'], 120, 675);
+  drawText(formData['Rep Name/Title'], 420, 715);
+
+  // Case Notes table entries - starting position for notes area
+  const notesStartY = 600;
+  const rowHeight = 20;
+  const caseNotes = formData.caseNotes || [];
+  
+  let currentY = notesStartY;
+  for (let i = 0; i < caseNotes.length && currentY > 150; i++) {
+    const note = caseNotes[i];
+    if (!note.date && !note.time && !note.notes) continue;
+    
+    drawText(note.date || '', 50, currentY);
+    drawText(note.time || '', 150, currentY);
+    
+    // Handle multi-line notes with word wrap
+    const notesText = note.notes || '';
+    const words = notesText.split(' ');
+    let line = '';
+    let lineY = currentY;
+    const maxWidth = 320;
+    
+    for (const word of words) {
+      const testLine = line + (line ? ' ' : '') + word;
+      const testWidth = font.widthOfTextAtSize(testLine, fontSize);
+      
+      if (testWidth > maxWidth && line) {
+        drawText(line, 230, lineY);
+        lineY -= 12;
+        line = word;
+      } else {
+        line = testLine;
+      }
+    }
+    if (line) {
+      drawText(line, 230, lineY);
+      lineY -= 12;
+    }
+    
+    currentY = Math.min(currentY - rowHeight, lineY - 8);
+  }
+
+  // Signatures - embed if provided
+  const signatureY = 100;
+  
+  if (signatureValues['Client Signature']) {
+    try {
+      const sigData = signatureValues['Client Signature'];
+      const sigImage = sigData.startsWith('data:image/png') 
+        ? await pdfDoc.embedPng(sigData)
+        : await pdfDoc.embedJpg(sigData);
+      const sigDims = sigImage.scale(0.3);
+      page.drawImage(sigImage, {
+        x: 50,
+        y: signatureY,
+        width: Math.min(sigDims.width, 120),
+        height: Math.min(sigDims.height, 40),
+      });
+    } catch (e) {
+      console.warn('Failed to embed client signature:', e);
+    }
+  }
+  
+  drawText(formData['Client Date'], 50, signatureY - 15);
+
+  if (signatureValues['Rep Signature']) {
+    try {
+      const sigData = signatureValues['Rep Signature'];
+      const sigImage = sigData.startsWith('data:image/png')
+        ? await pdfDoc.embedPng(sigData)
+        : await pdfDoc.embedJpg(sigData);
+      const sigDims = sigImage.scale(0.3);
+      page.drawImage(sigImage, {
+        x: 350,
+        y: signatureY,
+        width: Math.min(sigDims.width, 120),
+        height: Math.min(sigDims.height, 40),
+      });
+    } catch (e) {
+      console.warn('Failed to embed rep signature:', e);
+    }
+  }
+  
+  drawText(formData['Rep Date'], 350, signatureY - 15);
 
   return await pdfDoc.save();
 }
