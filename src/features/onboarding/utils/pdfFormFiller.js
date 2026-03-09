@@ -122,7 +122,7 @@ export async function extractFormFields(pdfBytes) {
         const widgetRef = widgets[0].dict;
         for (let i = 0; i < pageCount; i++) {
           const pageObj = pdfDoc.getPage(i);
-          const annots = pageObj.node.lookupMaybe(
+          pageObj.node.lookupMaybe(
             // PDFName for "Annots"
             pdfDoc.context.obj('Annots'),
             // fallback
@@ -338,7 +338,7 @@ export async function fillPdfForm(templateBytes, fieldValues = {}, checkboxValue
  * Generate a standalone PDF with form data when template is unavailable.
  * Used for 790-Case Notes (no form fields) or when template download fails.
  */
-export async function generateStandalonePdf(formData, templateName = 'Document') {
+export async function generateStandalonePdf(formData, templateName = 'Document', options = {}) {
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -355,6 +355,41 @@ export async function generateStandalonePdf(formData, templateName = 'Document')
     }
     return page;
   };
+
+  if (options.debugCoordinates) {
+    const w = page.getWidth();
+    const h = page.getHeight();
+    for (let x = 0; x <= w; x += 50) {
+      page.drawLine({
+        start: { x, y: 0 },
+        end: { x, y: h },
+        thickness: 0.3,
+        color: rgb(0.85, 0.85, 0.85),
+      });
+      page.drawText(String(x), {
+        x: Math.min(x + 2, w - 20),
+        y: h - 12,
+        size: 7,
+        font,
+        color: rgb(0.45, 0.45, 0.45),
+      });
+    }
+    for (let yy = 0; yy <= h; yy += 50) {
+      page.drawLine({
+        start: { x: 0, y: yy },
+        end: { x: w, y: yy },
+        thickness: 0.3,
+        color: rgb(0.85, 0.85, 0.85),
+      });
+      page.drawText(String(yy), {
+        x: 2,
+        y: Math.min(yy + 2, h - 12),
+        size: 7,
+        font,
+        color: rgb(0.45, 0.45, 0.45),
+      });
+    }
+  }
 
   // Title
   page.drawText(templateName, {
@@ -465,111 +500,118 @@ export async function generateStandalonePdf(formData, templateName = 'Document')
  * Fill Case Notes PDF by overlaying text on the original template.
  * Used when PDF template has no fillable form fields.
  */
-export async function fillCaseNotesPdf(templateBytes, formData, signatureValues = {}) {
+export async function fillCaseNotesPdf(templateBytes, formData, signatureValues = {}, options = {}) {
   const pdfDoc = await PDFDocument.load(templateBytes);
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const pages = pdfDoc.getPages();
   const page = pages[0];
   
   // Text style config
-  const fontSize = 10;
+  const pageHeight = 792;
   const textColor = rgb(0, 0, 0);
 
-  // Helper to draw text
-  const drawText = (text, x, y) => {
+  // Helper to draw text (y is in top-origin coords, auto-converted to pdf-lib bottom-origin)
+  const drawText = (text, x, yTop, size = 10) => {
     if (!text) return;
-    page.drawText(String(text), { x, y, size: fontSize, font, color: textColor });
+    const yPdf = pageHeight - yTop - size + 2; // baseline = pageHeight - boxBottom + descent
+    page.drawText(String(text), { x, y: yPdf, size, font, color: textColor });
   };
 
-  // Header fields - coordinates based on typical Case Notes layout
-  // These may need adjustment based on actual PDF template
-  drawText(formData['Client ID'], 120, 715);
-  drawText(formData['Client Name'], 120, 695);
-  drawText(formData['Client DOB'], 120, 675);
-  drawText(formData['Rep Name/Title'], 420, 715);
+  if (options.debugCoordinates) {
+    const w = page.getWidth();
+    const h = page.getHeight();
 
-  // Case Notes table entries - starting position for notes area
-  const notesStartY = 600;
-  const rowHeight = 20;
+    // Draw a light coordinate grid every 50 points for manual calibration.
+    for (let x = 0; x <= w; x += 50) {
+      page.drawLine({
+        start: { x, y: 0 },
+        end: { x, y: h },
+        thickness: 0.3,
+        color: rgb(0.85, 0.85, 0.85),
+      });
+      page.drawText(String(x), {
+        x: Math.min(x + 2, w - 20),
+        y: h - 12,
+        size: 7,
+        font,
+        color: rgb(0.45, 0.45, 0.45),
+      });
+    }
+    for (let y = 0; y <= h; y += 50) {
+      page.drawLine({
+        start: { x: 0, y },
+        end: { x: w, y },
+        thickness: 0.3,
+        color: rgb(0.85, 0.85, 0.85),
+      });
+      page.drawText(String(y), {
+        x: 2,
+        y: Math.min(y + 2, h - 12),
+        size: 7,
+        font,
+        color: rgb(0.45, 0.45, 0.45),
+      });
+    }
+
+    page.drawText('DEBUG COORDINATE GRID ENABLED', {
+      x: 8,
+      y: h - 24,
+      size: 9,
+      font: boldFont,
+      color: rgb(0.8, 0.1, 0.1),
+    });
+  }
+
+  const dataUrlToBytes = (dataUrl) => {
+    if (!dataUrl || typeof dataUrl !== 'string') return null;
+    const parts = dataUrl.split(',');
+    if (parts.length !== 2) return null;
+    const base64 = parts[1];
+    return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  };
+
+  // Header fields - exact coordinates from PDF template analysis (top-origin)
+  // Client ID: [84, 93.2, 193, 103.9], Client Name: [243, 93.2, 560, 103.9]
+  // Client DOB: [96, 108.4, 193, 119.8], Rep: [363, 108.4, 560, 119.8]
+  drawText(formData['Client ID'], 84, 93.2, 9);
+  drawText(formData['Client Name'], 243, 93.2, 9);
+  drawText(formData['Client DOB'], 96, 108.4, 9);
+  drawText(formData['Rep Name/Title'], 363, 108.4, 9);
+
+  // Case Notes table - exact coordinates from PDF analysis (top-origin)
+  // 37 rows: first row top=134.9, last row bottom=694.8, each ~15.5pt tall
+  // Date: [54.7, row_top+1, 130.0], Time: [131.0, row_top+1, 192.0], Notes: [194.0, row_top+1, 559.7]
+  const rowHeight = 15.55;
+  const dateColX = 54.7;
+  const timeColX = 131.0;
+  const notesColX = 198.0; // 194 + 4pt right padding from column line
+  const tableFontSize = 7;
+  const maxNotesWidth = 559.7 - 194.0; // ~365pt
   const caseNotes = formData.caseNotes || [];
   
-  let currentY = notesStartY;
-  for (let i = 0; i < caseNotes.length && currentY > 150; i++) {
+  for (let i = 0; i < caseNotes.length && i < 37; i++) {
     const note = caseNotes[i];
     if (!note.date && !note.time && !note.notes) continue;
     
-    drawText(note.date || '', 50, currentY);
-    drawText(note.time || '', 150, currentY);
+    const rowTop = 134.9 + (i * rowHeight) + 1; // row_top + 1pt offset
     
-    // Handle multi-line notes with word wrap
+    drawText(note.date || '', dateColX, rowTop, tableFontSize);
+    drawText(note.time || '', timeColX, rowTop, tableFontSize);
+    
+    // Handle notes - single line that fits in the cell
     const notesText = note.notes || '';
-    const words = notesText.split(' ');
-    let line = '';
-    let lineY = currentY;
-    const maxWidth = 320;
-    
-    for (const word of words) {
-      const testLine = line + (line ? ' ' : '') + word;
-      const testWidth = font.widthOfTextAtSize(testLine, fontSize);
-      
-      if (testWidth > maxWidth && line) {
-        drawText(line, 230, lineY);
-        lineY -= 12;
-        line = word;
-      } else {
-        line = testLine;
-      }
+    const availableWidth = maxNotesWidth;
+    let truncated = notesText;
+    // Truncate if too long for single row
+    while (truncated.length > 0 && font.widthOfTextAtSize(truncated, tableFontSize) > availableWidth) {
+      truncated = truncated.slice(0, -1);
     }
-    if (line) {
-      drawText(line, 230, lineY);
-      lineY -= 12;
-    }
-    
-    currentY = Math.min(currentY - rowHeight, lineY - 8);
+    drawText(truncated, notesColX, rowTop, tableFontSize);
   }
 
-  // Signatures - embed if provided
-  const signatureY = 100;
-  
-  if (signatureValues['Client Signature']) {
-    try {
-      const sigData = signatureValues['Client Signature'];
-      const sigImage = sigData.startsWith('data:image/png') 
-        ? await pdfDoc.embedPng(sigData)
-        : await pdfDoc.embedJpg(sigData);
-      const sigDims = sigImage.scale(0.3);
-      page.drawImage(sigImage, {
-        x: 50,
-        y: signatureY,
-        width: Math.min(sigDims.width, 120),
-        height: Math.min(sigDims.height, 40),
-      });
-    } catch (e) {
-      console.warn('Failed to embed client signature:', e);
-    }
-  }
-  
-  drawText(formData['Client Date'], 50, signatureY - 15);
-
-  if (signatureValues['Rep Signature']) {
-    try {
-      const sigData = signatureValues['Rep Signature'];
-      const sigImage = sigData.startsWith('data:image/png')
-        ? await pdfDoc.embedPng(sigData)
-        : await pdfDoc.embedJpg(sigData);
-      const sigDims = sigImage.scale(0.3);
-      page.drawImage(sigImage, {
-        x: 350,
-        y: signatureY,
-        width: Math.min(sigDims.width, 120),
-        height: Math.min(sigDims.height, 40),
-      });
-    } catch (e) {
-      console.warn('Failed to embed rep signature:', e);
-    }
-  }
-  
-  drawText(formData['Rep Date'], 350, signatureY - 15);
+  // Note: This form template (790-Case Notes-TX.pdf) has no signature fields.
+  // It only contains header fields and date/time/notes table.
 
   return await pdfDoc.save();
 }

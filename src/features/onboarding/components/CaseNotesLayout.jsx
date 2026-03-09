@@ -22,7 +22,6 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import SignaturePad from './SignaturePad';
 
 // ─── PDF field name constants ────────────────────────────────────────────
 const F = {
@@ -31,12 +30,6 @@ const F = {
   CLIENT_NAME: 'Client Name',
   CLIENT_DOB: 'Client DOB',
   REP_NAME_TITLE: 'Rep Name/Title',
-
-  // Signatures
-  CLIENT_SIGNATURE: 'Client Signature',
-  CLIENT_DATE: 'Client Date',
-  REP_SIGNATURE: 'Rep Signature',
-  REP_DATE: 'Rep Date',
 };
 
 /**
@@ -46,37 +39,13 @@ export const CASE_NOTES_AUTO_SYNC = {};
 
 // ─── Sub-components ─────────────────────────────────────────────────────
 
-const SignatureSection = ({ title, caption, children }) => (
-  <Box
-    sx={{
-      border: '1px solid #e0e0e0',
-      borderRadius: 1,
-      p: 2,
-      mb: 2,
-      bgcolor: '#fafafa',
-    }}
-  >
-    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: caption ? 0.25 : 1.5, color: '#1e3a5f' }}>
-      {title}
-    </Typography>
-    {caption && (
-      <Typography variant="caption" sx={{ color: '#888', display: 'block', mb: 1.5 }}>
-        {caption}
-      </Typography>
-    )}
-    {children}
-  </Box>
-);
-
 // ─── Main Component ─────────────────────────────────────────────────────
 
 const CaseNotesLayout = ({
   formValues = {},
   checkboxValues = {},
-  signatureValues = {},
   onFormChange,
   onCheckboxChange,
-  onSignatureChange,
   disabled = false,
 }) => {
   // ── Initialize notes array if not present ──
@@ -85,10 +54,6 @@ const CaseNotesLayout = ({
   // ── Handlers ──
   const handleText = (fieldName) => (e) => {
     onFormChange({ ...formValues, [fieldName]: e.target.value });
-  };
-
-  const handleSignature = (fieldName) => (dataUrl) => {
-    onSignatureChange({ ...signatureValues, [fieldName]: dataUrl });
   };
 
   const handleNoteChange = (noteId, field, value) => {
@@ -278,66 +243,8 @@ const CaseNotesLayout = ({
         </Typography>
       </Paper>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          SIGNATURES
-      ═══════════════════════════════════════════════════════════════════ */}
-      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-        <Typography
-          variant="h6"
-          sx={{ fontWeight: 700, color: '#1e3a5f', fontSize: '1rem', textTransform: 'uppercase', mb: 1 }}
-        >
-          Signatures
-        </Typography>
-        <Divider sx={{ mb: 2 }} />
-
-        {/* Client Signature */}
-        <SignatureSection title="Client Signature" caption="Client acknowledges the case notes">
-          <SignaturePad
-            label="Client Signature - Sign here"
-            value={signatureValues[F.CLIENT_SIGNATURE]}
-            onChange={handleSignature(F.CLIENT_SIGNATURE)}
-            disabled={disabled}
-          />
-          <Grid container spacing={2} sx={{ mt: 1.5 }}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                size="small"
-                type="date"
-                label="Date"
-                value={formValues[F.CLIENT_DATE] || ''}
-                onChange={handleText(F.CLIENT_DATE)}
-                disabled={disabled}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-          </Grid>
-        </SignatureSection>
-
-        {/* Representative Signature */}
-        <SignatureSection title="Representative Signature" caption="To be completed by Mastercare representative">
-          <SignaturePad
-            label="Representative Signature - Sign here"
-            value={signatureValues[F.REP_SIGNATURE]}
-            onChange={handleSignature(F.REP_SIGNATURE)}
-            disabled={disabled}
-          />
-          <Grid container spacing={2} sx={{ mt: 1.5 }}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                size="small"
-                type="date"
-                label="Date"
-                value={formValues[F.REP_DATE] || ''}
-                onChange={handleText(F.REP_DATE)}
-                disabled={disabled}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-          </Grid>
-        </SignatureSection>
-      </Paper>
+      {/* Note: This template (790-Case Notes-TX.pdf) contains no signature fields.
+          The form only captures Date/Time/Notes table entries. */}
     </Box>
   );
 };

@@ -1,5 +1,5 @@
 // features/onboarding/pages/FillForm.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Box,
@@ -50,6 +50,18 @@ const CARE_PLAN_ACK_TEMPLATE = 'Care Plan Acknowledgement';
 const EMERGENCY_PLAN_TEMPLATE = 'Emergency Plan';
 const HOME_ENVIRONMENT_SAFETY_TEMPLATE = 'Home Environment Safety Checklist';
 const CASE_NOTES_TEMPLATE = 'Case Notes';
+
+function isPdfDebugEnabled() {
+  const params = new URLSearchParams(window.location.search);
+  const raw =
+    params.get('pdfDebug') ??
+    params.get('debugPdf') ??
+    params.get('pdf_grid') ??
+    params.get('grid') ??
+    '0';
+
+  return ['1', 'true', 'yes', 'on'].includes(String(raw).toLowerCase());
+}
 
 const FillForm = () => {
   const { token } = useParams();
@@ -205,6 +217,7 @@ const FillForm = () => {
       }
 
       let pdfBlob;
+      const debugCoordinates = isPdfDebugEnabled();
 
       if (templateBytes && pdfFields.length > 0) {
         // Fill the actual template PDF using form field API
@@ -233,13 +246,28 @@ const FillForm = () => {
         const templateName = assignment?.template?.name;
         
         if (templateName === CASE_NOTES_TEMPLATE && templateBytes) {
-          // Case Notes: overlay text on the original PDF template
-          const overlayPdfBytes = await fillCaseNotesPdf(
-            templateBytes,
-            finalFormValues,
-            signatureValues
-          );
-          pdfBlob = new Blob([overlayPdfBytes], { type: 'application/pdf' });
+          // Case Notes template is non-fillable; try overlay first, then fallback.
+          try {
+            const overlayPdfBytes = await fillCaseNotesPdf(
+              templateBytes,
+              finalFormValues,
+              signatureValues,
+              { debugCoordinates }
+            );
+            pdfBlob = new Blob([overlayPdfBytes], { type: 'application/pdf' });
+          } catch (overlayError) {
+            console.warn('Case Notes overlay failed, generating standalone PDF:', overlayError);
+            const allData = { ...formValues };
+            for (const [k, v] of Object.entries(checkboxValues)) {
+              if (v) allData[k] = true;
+            }
+            const standalonePdfBytes = await generateStandalonePdf(
+              allData,
+              templateName || 'Document',
+              { debugCoordinates }
+            );
+            pdfBlob = new Blob([standalonePdfBytes], { type: 'application/pdf' });
+          }
         } else {
           // Fallback: generate standalone PDF
           const allData = { ...formValues };
@@ -248,7 +276,8 @@ const FillForm = () => {
           }
           const standalonePdfBytes = await generateStandalonePdf(
             allData,
-            templateName || 'Document'
+            templateName || 'Document',
+            { debugCoordinates }
           );
           pdfBlob = new Blob([standalonePdfBytes], { type: 'application/pdf' });
         }

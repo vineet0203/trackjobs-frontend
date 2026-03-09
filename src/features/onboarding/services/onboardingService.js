@@ -50,6 +50,7 @@ const onboardingService = {
   async getTemplatePdf(token) {
     const response = await publicClient.get(`${PUBLIC_BASE}/${token}/template-pdf`, {
       responseType: 'arraybuffer',
+      params: { v: Date.now() },
     });
     return response.data; // ArrayBuffer
   },
