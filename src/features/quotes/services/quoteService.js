@@ -190,6 +190,17 @@ class QuoteService extends BaseApiService {
     }
   }
 
+  async convertQuoteToJob(id) {
+    try {
+      const url = this.buildUrl(`/quotes/${id}/convert-to-job`);
+      const response = await this.client.post(url);
+      return response.data;
+    } catch (error) {
+      console.error(`Error converting quote ${id} to job:`, error);
+      throw error;
+    }
+  }
+
   async updateFollowUpStatus(id, status) {
     try {
       const url = this.buildUrl(`/quotes/${id}/follow-up-status`);

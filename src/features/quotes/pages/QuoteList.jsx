@@ -6,12 +6,16 @@ import PageHeader from '../../../components/common/PageHeader';
 import CustomButton from '../../../components/common/CustomButton';
 import HeaderSearch from '../../../components/common/HeaderSearch';
 import TableSkeleton from '../../../components/common/Loader/TableSkeleton'; // Import the skeleton
-import { Plus } from 'lucide-react';
+import { Plus, BriefcaseBusiness } from 'lucide-react';
 import { useQuotes } from '../hooks/useQuotes';
+import { useToast } from '../../../components/common/ToastProvider';
+import quoteService from '../services/quoteService';
 
 const QuoteList = () => {
     const navigate = useNavigate();
     const [selectedQuotes, setSelectedQuotes] = useState([]);
+    const [converting, setConverting] = useState(false);
+    const { showToast } = useToast();
 
     // Use the custom hook
     const {
@@ -59,6 +63,35 @@ const QuoteList = () => {
         navigate('/quotes/new');
     };
 
+    const handleConvertToJob = async () => {
+        if (selectedQuotes.length === 0) return;
+
+        const quoteId = selectedQuotes[0];
+        const quote = quotes.find(q => q.id === quoteId);
+
+        if (!quote) return;
+
+        if (quote.approval_status !== 'accepted' && quote.status !== 'accepted') {
+            showToast('Only accepted quotes can be converted to jobs.', 'error');
+            return;
+        }
+
+        setConverting(true);
+        try {
+            const response = await quoteService.convertQuoteToJob(quoteId);
+            const jobId = response?.data?.job?.id;
+            showToast('Quote successfully converted to job.', 'success');
+            if (jobId) {
+                navigate(`/jobs/${jobId}`);
+            }
+        } catch (err) {
+            const message = err?.response?.data?.message || 'Failed to convert quote to job.';
+            showToast(message, 'error');
+        } finally {
+            setConverting(false);
+        }
+    };
+
     const handleRowsPerPageChange = (event) => {
         const newLimit = parseInt(event.target.value, 10);
         console.log('Change rows per page to:', newLimit);
@@ -88,6 +121,14 @@ const QuoteList = () => {
                             value={filters.search || ''}
                             onChange={handleSearch}
                             placeholder="Search quotes..."
+                        />
+                        <CustomButton
+                            label="Convert to Job"
+                            onClick={handleConvertToJob}
+                            icon={BriefcaseBusiness}
+                            disabled={selectedQuotes.length === 0}
+                            loading={converting}
+                            variant="outlined"
                         />
                         <CustomButton
                             label="New Quote"
