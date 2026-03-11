@@ -72,4 +72,11 @@ export const API_ENDPOINTS = {
     managers: "/api/v1/vendors/employees/managers/options",
     
   },
+  schedules: {
+    base: "/api/v1/vendors/schedules",
+    get: (id) => `/api/v1/vendors/schedules/${id}`,
+    create: "/api/v1/vendors/schedules",
+    update: (id) => `/api/v1/vendors/schedules/${id}`,
+    delete: (id) => `/api/v1/vendors/schedules/${id}`,
+  },
 };

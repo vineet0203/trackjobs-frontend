@@ -11,6 +11,8 @@ import AttachmentsSection from '../components/JobView/AttachmentsSection';
 import ActivitySection from '../components/JobView/ActivitySection';
 import TasksSection from '../components/JobView/TasksSection';
 import InstructionsSection from '../components/JobView/InstructionsSection';
+import HeaderActions from '../components/JobView/HeaderActions';
+import AssignJobModal from '../components/JobView/AssignJobModal';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
 
 const JobDetails = () => {
@@ -18,6 +20,8 @@ const JobDetails = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [localTasks, setLocalTasks] = useState([]);
   const [localAttachments, setLocalAttachments] = useState({
     general: [],
@@ -63,6 +67,31 @@ const JobDetails = () => {
 
   const handleEdit = () => {
     navigate(`/jobs/${id}/edit`);
+  };
+
+  const saveJob = async () => {
+    if (!currentJob) return;
+    setSaving(true);
+    try {
+      await updateJob(id, {
+        title: currentJob.title,
+        status: currentJob.status,
+      });
+      showToast('Job updated successfully', 'success');
+      navigate('/jobs');
+    } catch (error) {
+      showToast('Failed to save job', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openAssignModal = () => {
+    setAssignModalOpen(true);
+  };
+
+  const handleJobAssigned = () => {
+    getJob(id);
   };
 
   const handleUpdateJob = async (data) => {
@@ -221,19 +250,26 @@ const JobDetails = () => {
           { label: currentJob?.job_number || '', current: true }
         ]}
 
-        action={
-          <JobActionMenu
-            status={currentJob?.status}
-            onEdit={handleEdit}
-            onDelete={() => setDeleteDialogOpen(true)}
-            onPrint={handlePrint}
-            onShare={handleShare}
-            onStatusChange={handleUpdateStatus}
-          />
+        actions={
+          <>
+            <HeaderActions
+              onSave={saveJob}
+              onAssignJob={openAssignModal}
+              saving={saving}
+            />
+            <JobActionMenu
+              status={currentJob?.status}
+              onEdit={handleEdit}
+              onDelete={() => setDeleteDialogOpen(true)}
+              onPrint={handlePrint}
+              onShare={handleShare}
+              onStatusChange={handleUpdateStatus}
+            />
+          </>
         }
       />
 
-      <JobDetailsSection jobData={currentJob} />
+      <JobDetailsSection jobData={currentJob} onUpdateJob={handleUpdateJob} />
 
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} md={6}>
@@ -287,6 +323,13 @@ const JobDetails = () => {
           // Reset input
           e.target.value = '';
         }}
+      />
+
+      <AssignJobModal
+        open={assignModalOpen}
+        onClose={() => setAssignModalOpen(false)}
+        jobData={currentJob}
+        onAssigned={handleJobAssigned}
       />
 
       <ConfirmDialog

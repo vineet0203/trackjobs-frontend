@@ -219,6 +219,17 @@ class JobService extends BaseApiService {
       throw error;
     }
   }
+
+  async assignJob(jobId, data) {
+    try {
+      const url = this.buildUrl(`/jobs/${jobId}/assign`);
+      const response = await this.client.post(url, data);
+      return response.data;
+    } catch (error) {
+      console.error(`Error assigning job ${jobId}:`, error);
+      throw error;
+    }
+  }
 }
 
 export default new JobService();

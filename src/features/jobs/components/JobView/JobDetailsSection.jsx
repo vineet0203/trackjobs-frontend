@@ -1,12 +1,13 @@
 // src/features/jobs/components/JobView/JobDetailsSection.jsx
-import React from 'react';
+import React, { useRef } from 'react';
 import { Grid, Paper, Typography, Box, Chip, Button } from '@mui/material';
 import { Business, Edit, Check, Schedule, Person, Description } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import SectionHeader from '../../../../components/common/form/SectionHeader';
 
-const JobDetailsSection = ({ jobData }) => {
+const JobDetailsSection = ({ jobData, onUpdateJob }) => {
     const navigate = useNavigate();
+    const endDateInputRef = useRef(null);
 
     // Safely access nested properties with fallbacks
     const clientName = jobData?.client?.name || 'N/A';
@@ -47,7 +48,7 @@ const JobDetailsSection = ({ jobData }) => {
                         variant="outlined"
                         color="primary"
                         startIcon={<Schedule />}
-                        onClick={() => console.log('Schedule job')}
+                        onClick={() => navigate(`/schedule?jobId=${jobData?.id}&openCreate=true`)}
                         sx={{
                             textTransform: 'none',
                             borderColor: 'primary.main',
@@ -203,7 +204,33 @@ const JobDetailsSection = ({ jobData }) => {
                             <Typography variant="subtitle2" color="text.secondary">
                                 End Date:
                             </Typography>
-                            <Typography variant="body1">{jobData?.end_date || 'N/A'}</Typography>
+                            <Typography
+                                variant="body1"
+                                onClick={() => endDateInputRef.current?.showPicker()}
+                                sx={{
+                                    cursor: 'pointer',
+                                    '&:hover': { color: 'primary.main', textDecoration: 'underline' },
+                                }}
+                            >
+                                {jobData?.end_date || 'N/A'}
+                            </Typography>
+                            <input
+                                ref={endDateInputRef}
+                                type="date"
+                                style={{
+                                    position: 'absolute',
+                                    opacity: 0,
+                                    width: 0,
+                                    height: 0,
+                                    pointerEvents: 'none',
+                                }}
+                                value={jobData?.end_date || ''}
+                                onChange={(e) => {
+                                    if (e.target.value && onUpdateJob) {
+                                        onUpdateJob({ end_date: e.target.value });
+                                    }
+                                }}
+                            />
                         </Box>
                     </Box>
                 </Grid>

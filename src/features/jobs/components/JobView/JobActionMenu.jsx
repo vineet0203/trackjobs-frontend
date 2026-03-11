@@ -91,27 +91,6 @@ const JobActionMenu = ({ status, onEdit, onDelete, onPrint, onShare, onStatusCha
     return (
         <>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                <StatusChip status={status} />
-
-                <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<Update />}
-                    onClick={handleStatusMenuOpen}
-                    sx={{ textTransform: 'none' }}
-                >
-                    Update Status
-                </Button>
-
-                <Button
-                    variant="contained"
-                    startIcon={<Edit />}
-                    onClick={handleEdit}
-                    sx={{ textTransform: 'none' }}
-                >
-                    Edit Job
-                </Button>
-
                 <IconButton onClick={handleMenuOpen}>
                     <MoreVert />
                 </IconButton>

@@ -35,6 +35,7 @@ import JobDetails from './features/jobs/pages/JobDetails';
 import OnlineBooking from './features/bookings/pages/OnlineBooking';
 import JobList from './features/jobs/pages/JobList';
 import EmployeeList from './features/employees/pages/EmployeeList';
+import ScheduleDashboard from './features/schedule/pages/ScheduleDashboard';
 import TestPage from './pages/TestPage';
 
 // Onboarding Pages
@@ -86,7 +87,7 @@ const AppContent = () => {
         <Route path="/jobs/:id" element={<div>Job Details</div>} />
         <Route path="/jobs/:id/edit" element={<div>Edit Job</div>} /> */}
 
-        <Route path="/schedule" element={<NotYetDesigned />} />
+        <Route path="/schedule" element={<ScheduleDashboard />} />
         {/* <Route path="/invoices" element={<div>Invoices</div>} />
         <Route path="/reports" element={<div>Reports</div>} />
         <Route path="/settings" element={<div>Settings</div>} /> */}

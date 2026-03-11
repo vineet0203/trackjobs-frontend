@@ -65,6 +65,7 @@ const JobTableRow = ({ job, isSelected, onSelect }) => {
     const totalAmount = job.total_amount || 0;
     const formattedTotal = job.formatted_total || `$${totalAmount.toFixed(2)}`;
     const assignedTo = job.assigned_to;
+    const latestAssignment = job.latest_assignment;
     const taskCount = job.stats?.total_tasks || 0;
     const attachmentCount = job.stats?.total_attachments || 0;
 
@@ -172,7 +173,18 @@ const JobTableRow = ({ job, isSelected, onSelect }) => {
 
             {/* Assigned To Column */}
             <TableCell>
-                {assignedTo ? (
+                {latestAssignment ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <ProfileAvatar
+                            name={latestAssignment.employee_name}
+                            size={24}
+                        />
+                        <EllipsisText
+                            text={latestAssignment.employee_name}
+                            sx={{ fontSize: '0.85rem', maxWidth: 120 }}
+                        />
+                    </Box>
+                ) : assignedTo ? (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <ProfileAvatar
                             name={assignedTo.full_name || 'Unknown User'}

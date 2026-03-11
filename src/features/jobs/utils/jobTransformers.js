@@ -41,6 +41,7 @@ export const transformJobFromApi = (apiJob) => {
 
     // Relationships
     assigned_to: apiJob.assigned_to,
+    latest_assignment: apiJob.latest_assignment || null,
     created_by: apiJob.created_by,
     updated_by: apiJob.updated_by,
 
