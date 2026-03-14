@@ -15,8 +15,10 @@ import {
   IconButton,
   Tooltip,
   Skeleton,
+  ToggleButtonGroup,
+  ToggleButton,
 } from "@mui/material";
-import { Add, Delete, Visibility } from "@mui/icons-material";
+import { Add, Delete, TableRows, CalendarMonth } from "@mui/icons-material";
 import { CalendarDays } from "lucide-react";
 import PageHeader from "../../../components/common/PageHeader";
 import HeaderSearch from "../../../components/common/HeaderSearch";
@@ -24,11 +26,9 @@ import CustomButton from "../../../components/common/CustomButton";
 import { useSchedules } from "../hooks/useSchedules";
 import { useToast } from "../../../components/common/ToastProvider";
 import CreateScheduleModal from "../components/CreateScheduleModal";
-import {
-  PRIORITY_COLORS,
-  STATUS_COLORS,
-} from "../constants/scheduleConstants";
+import { PRIORITY_COLORS, STATUS_COLORS } from "../constants/scheduleConstants";
 import jobService from "../../jobs/services/jobService";
+import DispatchCalendarView from "../components/DispatchCalendarView";
 
 const formatDateTime = (isoStr) => {
   if (!isoStr) return "—";
@@ -45,10 +45,11 @@ const formatDateTime = (isoStr) => {
 const ScheduleDashboard = () => {
   const { showToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [viewMode, setViewMode] = useState("calendar");
+
   const {
     schedules,
     loading,
-    error,
     pagination,
     filters,
     handleSearch,
@@ -62,7 +63,6 @@ const ScheduleDashboard = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [prefillJobData, setPrefillJobData] = useState(null);
   const [searchInput, setSearchInput] = useState("");
-
   const searchDebounceRef = useRef(null);
 
   const handleSearchChange = useCallback(
@@ -95,15 +95,18 @@ const ScheduleDashboard = () => {
     const jobId = searchParams.get("jobId");
     const openCreate = searchParams.get("openCreate");
     if (openCreate === "true" && jobId) {
-      jobService.getById(jobId).then((res) => {
-        const job = res.data || res;
-        setPrefillJobData(job);
-        setModalOpen(true);
-        setSearchParams({}, { replace: true });
-      }).catch(() => {
-        showToast("Failed to load job details", "error");
-        setSearchParams({}, { replace: true });
-      });
+      jobService
+        .getById(jobId)
+        .then((res) => {
+          const job = res.data || res;
+          setPrefillJobData(job);
+          setModalOpen(true);
+          setSearchParams({}, { replace: true });
+        })
+        .catch(() => {
+          showToast("Failed to load job details", "error");
+          setSearchParams({}, { replace: true });
+        });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -115,11 +118,9 @@ const ScheduleDashboard = () => {
     setModalOpen(false);
     setPrefillJobData(null);
   };
-
   const handleScheduleCreated = () => {
     refreshSchedules();
   };
-
   const onDeleteSchedule = async (id) => {
     if (window.confirm("Are you sure you want to delete this schedule?")) {
       await handleDeleteSchedule(id);
@@ -153,12 +154,39 @@ const ScheduleDashboard = () => {
         title="Schedule"
         subtitle="Manage and view all scheduled jobs."
         actions={
-          <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-            <HeaderSearch
-              value={searchInput}
-              onChange={handleSearchChange}
-              placeholder="Search schedules..."
-            />
+          <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
+            {viewMode === "table" && (
+              <HeaderSearch
+                value={searchInput}
+                onChange={handleSearchChange}
+                placeholder="Search schedules..."
+              />
+            )}
+            <ToggleButtonGroup
+              value={viewMode}
+              exclusive
+              onChange={(_, val) => {
+                if (val) setViewMode(val);
+              }}
+              size="small"
+              sx={{
+                "& .MuiToggleButton-root": {
+                  textTransform: "none",
+                  px: 1.5,
+                  py: 0.6,
+                  fontSize: "0.8rem",
+                },
+              }}
+            >
+              <ToggleButton value="table">
+                <TableRows fontSize="small" sx={{ mr: 0.5 }} />
+                Table
+              </ToggleButton>
+              <ToggleButton value="calendar">
+                <CalendarMonth fontSize="small" sx={{ mr: 0.5 }} />
+                Calendar
+              </ToggleButton>
+            </ToggleButtonGroup>
             <CustomButton
               label="Create Schedule"
               onClick={handleOpenModal}
@@ -168,170 +196,176 @@ const ScheduleDashboard = () => {
         }
       />
 
-      {/* Status filter chips */}
-      <Box sx={{ px: 3, pt: 2, pb: 1, display: "flex", gap: 1 }}>
-        {["all", "scheduled", "draft", "completed", "cancelled"].map(
-          (status) => (
-            <Chip
-              key={status}
-              label={status.charAt(0).toUpperCase() + status.slice(1)}
-              variant={
-                (filters.status === status) ||
-                (status === "all" && !filters.status)
-                  ? "filled"
-                  : "outlined"
-              }
-              color={
-                (filters.status === status) ||
-                (status === "all" && !filters.status)
-                  ? "primary"
-                  : "default"
-              }
-              onClick={() =>
-                handleFilterChange({
-                  status: status === "all" ? "" : status,
-                })
-              }
-              size="small"
-              sx={{ textTransform: "capitalize", cursor: "pointer" }}
-            />
-          )
-        )}
-      </Box>
+      {/* Calendar / Dispatch view */}
+      {viewMode === "calendar" && (
+        <DispatchCalendarView onOpenModal={handleOpenModal} />
+      )}
 
-      {/* Schedule Table */}
-      <Box sx={{ px: 3, pt: 1 }}>
-        <TableContainer
-          component={Paper}
-          sx={{ borderRadius: 2, boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}
-        >
-          <Table size="small">
-            <TableHead>
-              <TableRow sx={{ backgroundColor: "#f8f9fa" }}>
-                <TableCell sx={{ fontWeight: 600 }}>Job</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Crew</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Start</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>End</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Priority</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 600 }} align="right">
-                  Actions
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                renderSkeletonRows()
-              ) : schedules.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
-                    <Box
-                      display="flex"
-                      flexDirection="column"
-                      alignItems="center"
-                      gap={1}
-                    >
-                      <CalendarDays size={40} color="#bbb" />
-                      <Typography variant="body1" color="text.secondary">
-                        No schedules found
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Create your first schedule to get started
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                schedules.map((schedule) => (
-                  <TableRow
-                    key={schedule.id}
-                    hover
-                    sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
-                  >
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={500}>
-                        {schedule.job?.title || "—"}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {schedule.job?.job_number || ""}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {schedule.crew?.name || "Unassigned"}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {formatDateTime(schedule.start_datetime)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {formatDateTime(schedule.end_datetime)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={schedule.priority}
-                        size="small"
-                        sx={{
-                          backgroundColor:
-                            PRIORITY_COLORS[schedule.priority]?.bg || "#f5f5f5",
-                          color:
-                            PRIORITY_COLORS[schedule.priority]?.text ||
-                            "#757575",
-                          fontWeight: 500,
-                          textTransform: "capitalize",
-                          fontSize: "0.75rem",
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={schedule.status}
-                        size="small"
-                        sx={{
-                          backgroundColor:
-                            STATUS_COLORS[schedule.status]?.bg || "#f5f5f5",
-                          color:
-                            STATUS_COLORS[schedule.status]?.text || "#757575",
-                          fontWeight: 500,
-                          textTransform: "capitalize",
-                          fontSize: "0.75rem",
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <Tooltip title="Delete">
-                        <IconButton
-                          size="small"
-                          onClick={() => onDeleteSchedule(schedule.id)}
-                          sx={{ color: "#d32f2f" }}
-                        >
-                          <Delete fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
+      {/* Table view */}
+      {viewMode === "table" && (
+        <>
+          {/* Status filter chips */}
+          <Box sx={{ px: 3, pt: 2, pb: 1, display: "flex", gap: 1, flexWrap: "wrap" }}>
+            {["all", "scheduled", "draft", "completed", "cancelled"].map((status) => (
+              <Chip
+                key={status}
+                label={status.charAt(0).toUpperCase() + status.slice(1)}
+                variant={
+                  filters.status === status || (status === "all" && !filters.status)
+                    ? "filled"
+                    : "outlined"
+                }
+                color={
+                  filters.status === status || (status === "all" && !filters.status)
+                    ? "primary"
+                    : "default"
+                }
+                onClick={() =>
+                  handleFilterChange({ status: status === "all" ? "" : status })
+                }
+                size="small"
+                sx={{ textTransform: "capitalize", cursor: "pointer" }}
+              />
+            ))}
+          </Box>
+
+          {/* Schedule Table */}
+          <Box sx={{ px: 3, pt: 1 }}>
+            <TableContainer
+              component={Paper}
+              sx={{ borderRadius: 2, boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}
+            >
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: "#f8f9fa" }}>
+                    <TableCell sx={{ fontWeight: 600 }}>Job</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Crew</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Start</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>End</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Priority</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }} align="right">
+                      Actions
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                </TableHead>
+                <TableBody>
+                  {loading ? (
+                    renderSkeletonRows()
+                  ) : schedules.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                        <Box
+                          display="flex"
+                          flexDirection="column"
+                          alignItems="center"
+                          gap={1}
+                        >
+                          <CalendarDays size={40} color="#bbb" />
+                          <Typography variant="body1" color="text.secondary">
+                            No schedules found
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Create your first schedule to get started
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    schedules.map((schedule) => (
+                      <TableRow
+                        key={schedule.id}
+                        hover
+                        sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
+                      >
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={500}>
+                            {schedule.job?.title || "—"}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {schedule.job?.job_number || ""}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {schedule.crew?.name || "Unassigned"}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {formatDateTime(schedule.start_datetime)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {formatDateTime(schedule.end_datetime)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={schedule.priority}
+                            size="small"
+                            sx={{
+                              backgroundColor:
+                                PRIORITY_COLORS[schedule.priority]?.bg ||
+                                "#f5f5f5",
+                              color:
+                                PRIORITY_COLORS[schedule.priority]?.text ||
+                                "#757575",
+                              fontWeight: 500,
+                              textTransform: "capitalize",
+                              fontSize: "0.75rem",
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={schedule.status}
+                            size="small"
+                            sx={{
+                              backgroundColor:
+                                STATUS_COLORS[schedule.status]?.bg || "#f5f5f5",
+                              color:
+                                STATUS_COLORS[schedule.status]?.text ||
+                                "#757575",
+                              fontWeight: 500,
+                              textTransform: "capitalize",
+                              fontSize: "0.75rem",
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <Tooltip title="Delete">
+                            <IconButton
+                              size="small"
+                              onClick={() => onDeleteSchedule(schedule.id)}
+                              sx={{ color: "#d32f2f" }}
+                            >
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
 
-          {!loading && schedules.length > 0 && (
-            <TablePagination
-              component="div"
-              count={pagination.total}
-              page={pagination.currentPage - 1}
-              onPageChange={handlePageChange}
-              rowsPerPage={pagination.perPage}
-              onRowsPerPageChange={handleRowsPerPageChange}
-              rowsPerPageOptions={[5, 10, 15, 25]}
-            />
-          )}
-        </TableContainer>
-      </Box>
+              {!loading && schedules.length > 0 && (
+                <TablePagination
+                  component="div"
+                  count={pagination.total}
+                  page={pagination.currentPage - 1}
+                  onPageChange={handlePageChange}
+                  rowsPerPage={pagination.perPage}
+                  onRowsPerPageChange={handleRowsPerPageChange}
+                  rowsPerPageOptions={[5, 10, 15, 25]}
+                />
+              )}
+            </TableContainer>
+          </Box>
+        </>
+      )}
 
       {/* Create Schedule Modal */}
       <CreateScheduleModal

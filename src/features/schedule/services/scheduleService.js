@@ -1,5 +1,5 @@
 import BaseApiService from "../../../services/api/baseApiService";
-import { API_ENDPOINTS } from "../../../services/api/config/apiConfig";
+import httpClient from "../../../services/api/httpClient";
 
 class ScheduleService extends BaseApiService {
   constructor() {
@@ -99,6 +99,51 @@ class ScheduleService extends BaseApiService {
       throw error;
     }
   }
+
+    // --- Dispatch API methods (use /api/v1/schedules, not /api/v1/vendors/schedules) ---
+
+    async getDispatchEvents() {
+      try {
+        const response = await httpClient.get("/api/v1/schedules");
+        const data = response.data;
+        return Array.isArray(data) ? data : (data?.data || []);
+      } catch (error) {
+        console.error("Error fetching dispatch events:", error);
+        throw error;
+      }
+    }
+
+    async getUpcomingJobs() {
+      try {
+        const response = await httpClient.get("/api/v1/schedules/upcoming");
+        const data = response.data;
+        return Array.isArray(data) ? data : (data?.data || []);
+      } catch (error) {
+        console.error("Error fetching upcoming jobs:", error);
+        throw error;
+      }
+    }
+
+    async getCrews() {
+      try {
+        const response = await httpClient.get("/api/v1/schedules/crews");
+        const data = response.data;
+        return Array.isArray(data) ? data : (data?.data || []);
+      } catch (error) {
+        console.error("Error fetching crews:", error);
+        throw error;
+      }
+    }
+
+    async updateDispatchEvent(id, data) {
+      try {
+        const response = await httpClient.put(`/api/v1/schedules/${id}`, data);
+        return response.data;
+      } catch (error) {
+        console.error(`Error updating dispatch event ${id}:`, error);
+        throw error;
+      }
+    }
 }
 
 const scheduleService = new ScheduleService();

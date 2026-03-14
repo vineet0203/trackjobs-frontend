@@ -20,26 +20,17 @@ const EmployeeTableRow = ({
     onDelete
 }) => {
 
-    // Add debug console
-    console.log("EmployeeTableRow received:", { employee, onEdit, onDelete });
-
     const handleEditClick = (e) => {
         e.stopPropagation(); // Prevent event bubbling
-        console.log("Edit clicked for employee:", employee.id);
         if (onEdit) {
             onEdit(employee.id);
-        } else {
-            console.warn("onEdit prop is not provided");
         }
     };
 
     const handleDeleteClick = (e) => {
         e.stopPropagation(); // Prevent event bubbling
-        console.log("Delete clicked for employee:", employee.id);
         if (onDelete) {
             onDelete(employee.id);
-        } else {
-            console.warn("onDelete prop is not provided");
         }
     };
 

@@ -167,6 +167,7 @@ export const useEmployees = ({ autoFetch = true, limit = 5 } = {}) => {
       try {
         const result = await dispatch(updateEmployee({ id, data })).unwrap();
         showToast("Employee updated successfully", "success");
+        refresh();
         return result;
       } catch (err) {
         const msg = err?.message || err?.data?.message || "Failed to update employee";
@@ -183,7 +184,7 @@ export const useEmployees = ({ autoFetch = true, limit = 5 } = {}) => {
       try {
         await dispatch(deleteEmployee(id)).unwrap();
         showToast("Employee deleted successfully", "success");
-        setTimeout(() => refresh(), 500);
+        refresh();
       } catch (err) {
         const msg = err?.message || err?.data?.message || "Failed to delete employee";
         setLocalError(msg);

@@ -24,6 +24,12 @@ class EmployeeService extends BaseApiService {
     this.employeesController = null;
   }
 
+  unwrapPayload(response) {
+    if (!response) return null;
+    if (response.data !== undefined) return response.data;
+    return response;
+  }
+
   async getAll(params = {}) {
     // Cancel previous request if any
     if (this.employeesController) {
@@ -58,23 +64,27 @@ class EmployeeService extends BaseApiService {
 
   async getById(id) {
     const response = await super.getById(id);
-    return transformEmployeeFromApi(response.data);
+    const payload = this.unwrapPayload(response);
+    return transformEmployeeFromApi(payload);
   }
 
   async create(data) {
     const apiData = transformEmployeeForApi(data);
     const response = await super.create(apiData);
-    return transformEmployeeFromApi(response.data);
+    const payload = this.unwrapPayload(response);
+    return transformEmployeeFromApi(payload);
   }
 
   async update(id, data) {
     const apiData = transformEmployeeForApi(data);
     const response = await super.update(id, apiData);
-    return transformEmployeeFromApi(response.data);
+    const payload = this.unwrapPayload(response);
+    return transformEmployeeFromApi(payload);
   }
 
   async delete(id) {
-    return await super.delete(id);
+    const response = await super.delete(id);
+    return this.unwrapPayload(response);
   }
 
   async getHierarchy() {

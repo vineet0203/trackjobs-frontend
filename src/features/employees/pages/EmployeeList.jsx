@@ -10,7 +10,6 @@ import TableSkeleton from "../../../components/common/Loader/TableSkeleton";
 import ErrorAlert from "../../../components/feedback/ErrorAlert";
 import HeaderSearch from "../../../components/common/HeaderSearch";
 import CustomButton from "../../../components/common/CustomButton";
-import { useToast } from "../../../components/common/ToastProvider";
 
 const EmployeeList = () => {
   const [searchInput, setSearchInput] = useState("");
@@ -40,8 +39,6 @@ const EmployeeList = () => {
     clearError,
     deleteEmployee,
   } = useEmployees({ autoFetch: true, limit: 5 });
-
-  const { showToast } = useToast();
 
   // Handle search with debounce
   const handleSearchChange = useCallback(
@@ -172,12 +169,7 @@ const EmployeeList = () => {
   // Handle delete
   const handleDelete = async (employeeId) => {
     if (window.confirm("Are you sure you want to delete this employee?")) {
-      try {
-        await deleteEmployee(employeeId);
-        showToast("Employee deleted successfully!", "success");
-      } catch (error) {
-        showToast(error.message || "Failed to delete employee", "error");
-      }
+      await deleteEmployee(employeeId);
     }
   };
 
