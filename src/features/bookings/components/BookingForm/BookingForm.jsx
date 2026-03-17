@@ -510,8 +510,14 @@ const BookingForm = ({ onSubmit, isLoading = false }) => {
                                     {employee.name}
                                 </MenuItem>
                             ))}
+                            {!loadingState.employees && employees.length === 0 ? (
+                                <MenuItem value="" disabled>
+                                    No service providers found
+                                </MenuItem>
+                            ) : null}
                         </Select>
                         {loadingState.employees ? <FormHelperText>Loading service providers...</FormHelperText> : null}
+                        {!loadingState.employees && employees.length === 0 ? <FormHelperText>No service providers found for this account.</FormHelperText> : null}
                         {touched.employeeId && errors.employeeId ? <FormHelperText>{errors.employeeId}</FormHelperText> : null}
                     </FormControl>
 
