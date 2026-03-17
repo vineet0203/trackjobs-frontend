@@ -96,7 +96,7 @@ const AppContent = () => {
 
         <Route path="/invoices" element={<NotYetDesigned />} />
         <Route path="/timesheets" element={<NotYetDesigned />} />
-        <Route path="/online-booking" element={<NotYetDesigned />} />
+        <Route path="/online-booking" element={<OnlineBooking />} />
         <Route path="/reports" element={<NotYetDesigned />} />
         <Route path="/settings" element={<NotYetDesigned />} />
         {/* <Route path="/test" element={<TestPage />} /> */}
